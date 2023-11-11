@@ -70,7 +70,7 @@ impl Container {
         &self,
         sb: &mut String,
         indentation: usize,
-        pointed_obj: Option<&dyn RTObject>,
+        pointed_obj: Option<&(dyn RTObject + Send + Sync)>,
     ) {
         Container::append_indentation(sb, indentation);
 

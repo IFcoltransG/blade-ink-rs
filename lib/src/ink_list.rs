@@ -1,5 +1,5 @@
 use core::fmt;
-use std::{cell::RefCell, collections::HashMap};
+use std::{sync::Mutex, collections::HashMap};
 
 use crate::{
     ink_list_item::InkListItem, list_definition::ListDefinition,
@@ -9,17 +9,17 @@ use crate::{
 #[derive(Clone)]
 pub struct InkList {
     pub items: HashMap<InkListItem, i32>,
-    pub origins: RefCell<Vec<ListDefinition>>,
+    pub origins: Mutex<Vec<ListDefinition>>,
     // we need an origin when we only have the definition (the list has not elemetns)
-    initial_origin_names: RefCell<Vec<String>>,
+    initial_origin_names: Mutex<Vec<String>>,
 }
 
 impl InkList {
     pub fn new() -> Self {
         Self {
             items: HashMap::new(),
-            origins: RefCell::new(Vec::with_capacity(0)),
-            initial_origin_names: RefCell::new(Vec::with_capacity(0)),
+            origins: Mutex::new(Vec::with_capacity(0)),
+            initial_origin_names: Mutex::new(Vec::with_capacity(0)),
         }
     }
 

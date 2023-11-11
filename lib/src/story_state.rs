@@ -1,4 +1,4 @@
-use std::{cell::RefCell, collections::HashMap, sync::Arc};
+use std::{sync::Mutex, collections::HashMap, sync::Arc};
 
 use crate::{
     callstack::CallStack,
@@ -111,7 +111,7 @@ impl StoryState {
             .clone()
     }
 
-    pub fn get_callstack(&self) -> &Arc<RefCell<CallStack>> {
+    pub fn get_callstack(&self) -> &Arc<Mutex<CallStack>> {
         &self.current_flow.callstack
     }
 
@@ -153,11 +153,11 @@ impl StoryState {
         &self.current_warnings
     }
 
-    pub fn get_output_stream(&self) -> &Vec<Arc<(dyn RTObject)>> {
+    pub fn get_output_stream(&self) -> &Vec<Arc<(dyn RTObject + Send + Sync)>> {
         &self.current_flow.output_stream
     }
 
-    fn get_output_stream_mut(&mut self) -> &mut Vec<Arc<(dyn RTObject)>> {
+    fn get_output_stream_mut(&mut self) -> &mut Vec<Arc<(dyn RTObject + Send + Sync)>> {
         &mut self.current_flow.output_stream
     }
 
@@ -750,7 +750,7 @@ impl StoryState {
         // If the patch is applied, then this new flow will replace the old one in
         // _namedFlows
         copy.current_flow.name = self.current_flow.name.clone();
-        copy.current_flow.callstack = Arc::new(RefCell::new(
+        copy.current_flow.callstack = Arc::new(Mutex::new(
             self.current_flow.callstack.as_ref().borrow().clone(),
         ));
         copy.current_flow.current_choices = self.current_flow.current_choices.clone();

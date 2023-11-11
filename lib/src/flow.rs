@@ -1,4 +1,4 @@
-use std::{cell::RefCell, sync::Arc};
+use std::{sync::Mutex, sync::Arc};
 
 use serde_json::Map;
 
@@ -14,7 +14,7 @@ use crate::{
 #[derive(Clone)]
 pub(crate) struct Flow {
     pub name: String,
-    pub callstack: Arc<RefCell<CallStack>>,
+    pub callstack: Arc<Mutex<CallStack>>,
     pub output_stream: Vec<Arc<dyn RTObject + Sync + Send>>,
     pub current_choices: Vec<Arc<Choice>>,
 }
@@ -23,7 +23,7 @@ impl Flow {
     pub fn new(name: &str, main_content_container: Arc<Container>) -> Flow {
         Flow {
             name: name.to_string(),
-            callstack: Arc::new(RefCell::new(CallStack::new(main_content_container))),
+            callstack: Arc::new(Mutex::new(CallStack::new(main_content_container))),
             output_stream: Vec::new(),
             current_choices: Vec::new(),
         }
@@ -36,7 +36,7 @@ impl Flow {
     ) -> Result<Flow, StoryError> {
         let mut flow = Self {
             name: name.to_string(),
-            callstack: Arc::new(RefCell::new(CallStack::new(main_content_container.clone()))),
+            callstack: Arc::new(Mutex::new(CallStack::new(main_content_container.clone()))),
             output_stream: json_read::jarray_to_runtime_obj_list(
                 j_obj
                     .get("outputStream")

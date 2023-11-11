@@ -1,6 +1,6 @@
 //! For setting the callbacks functions that will be called while the [`Story`]
 //! is processing.
-use std::{cell::RefCell, collections::HashSet, sync::Arc};
+use std::{sync::Mutex, collections::HashSet, sync::Arc};
 
 use crate::{
     container::Container, divert::Divert, object::RTObject, pointer::Pointer,
@@ -20,7 +20,7 @@ pub trait ExternalFunction {
 }
 
 pub(crate) struct ExternalFunctionDef {
-    function: Arc<RefCell<dyn ExternalFunction>>,
+    function: Arc<Mutex<dyn ExternalFunction>>,
     lookahead_safe: bool,
 }
 
@@ -47,7 +47,7 @@ impl Story {
     /// the story.
     /// It's strongly recommended that you assign an error handler to your
     /// story instance, to avoid getting panics for ink errors.
-    pub fn set_error_handler(&mut self, err_handler: Arc<RefCell<dyn ErrorHandler>>) {
+    pub fn set_error_handler(&mut self, err_handler: Arc<Mutex<dyn ErrorHandler>>) {
         self.on_error = Some(err_handler);
     }
 
@@ -63,7 +63,7 @@ impl Story {
     pub fn observe_variable(
         &mut self,
         variable_name: &str,
-        observer: Arc<RefCell<dyn VariableObserver>>,
+        observer: Arc<Mutex<dyn VariableObserver>>,
     ) -> Result<(), StoryError> {
         self.if_async_we_cant("observe a new variable")?;
 
@@ -81,7 +81,7 @@ impl Story {
                 v.push(observer);
             }
             None => {
-                let v: Vec<Arc<RefCell<dyn VariableObserver>>> = vec![observer];
+                let v: Vec<Arc<Mutex<dyn VariableObserver>>> = vec![observer];
                 self.variable_observers.insert(variable_name.to_string(), v);
             }
         }
@@ -95,7 +95,7 @@ impl Story {
     /// will be removed from all variables that it's subscribed to.
     pub fn remove_variable_observer(
         &mut self,
-        observer: &Arc<RefCell<dyn VariableObserver>>,
+        observer: &Arc<Mutex<dyn VariableObserver>>,
         specific_variable_name: Option<&str>,
     ) -> Result<(), StoryError> {
         self.if_async_we_cant("remove a variable observer")?;
@@ -173,7 +173,7 @@ impl Story {
     pub fn bind_external_function(
         &mut self,
         func_name: &str,
-        function: Arc<RefCell<dyn ExternalFunction>>,
+        function: Arc<Mutex<dyn ExternalFunction>>,
         lookahead_safe: bool,
     ) -> Result<(), StoryError> {
         self.if_async_we_cant("bind an external function")?;

@@ -1,4 +1,4 @@
-use std::{cell::RefCell, fmt, sync::Arc};
+use std::{sync::Mutex, fmt, sync::Arc};
 
 use crate::{
     container::Container,
@@ -10,8 +10,8 @@ use crate::{
 
 pub struct Divert {
     obj: Object,
-    target_pointer: RefCell<Pointer>,
-    target_path: RefCell<Option<Path>>,
+    target_pointer: Mutex<Pointer>,
+    target_path: Mutex<Option<Path>>,
     pub external_args: usize,
     pub is_conditional: bool,
     pub is_external: bool,
@@ -37,8 +37,8 @@ impl Divert {
             stack_push_type,
             is_external,
             external_args,
-            target_pointer: RefCell::new(pointer::NULL.clone()),
-            target_path: RefCell::new(Self::target_path_string(target_path)),
+            target_pointer: Mutex::new(pointer::NULL.clone()),
+            target_path: Mutex::new(Self::target_path_string(target_path)),
             variable_divert_name: var_divert_name,
         }
     }

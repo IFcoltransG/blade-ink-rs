@@ -1,5 +1,5 @@
 use core::panic;
-use std::{cell::RefCell, error::Error, sync::Arc};
+use std::{sync::Mutex, error::Error, sync::Arc};
 
 use bladeink::{
     story::Story,
@@ -49,7 +49,7 @@ fn external_function() -> Result<(), Box<dyn Error>> {
     let mut story = Story::new(&json_string)?;
     let mut text: Vec<String> = Vec::new();
 
-    story.bind_external_function("externalFunction", Arc::new(RefCell::new(ExtFunc1 {})), true)?;
+    story.bind_external_function("externalFunction", Arc::new(Mutex::new(ExtFunc1 {})), true)?;
 
     common::next_all(&mut story, &mut text)?;
     assert_eq!(1, text.len());
@@ -64,7 +64,7 @@ fn external_function_zero_arguments() -> Result<(), Box<dyn Error>> {
     let mut story = Story::new(&json_string)?;
     let mut text: Vec<String> = Vec::new();
 
-    story.bind_external_function("externalFunction", Arc::new(RefCell::new(ExtFunc2 {})), true)?;
+    story.bind_external_function("externalFunction", Arc::new(Mutex::new(ExtFunc2 {})), true)?;
 
     common::next_all(&mut story, &mut text)?;
     assert_eq!(1, text.len());
@@ -79,7 +79,7 @@ fn external_function_one_arguments() -> Result<(), Box<dyn Error>> {
     let mut story = Story::new(&json_string)?;
     let mut text: Vec<String> = Vec::new();
 
-    story.bind_external_function("externalFunction", Arc::new(RefCell::new(ExtFunc3 {})), true)?;
+    story.bind_external_function("externalFunction", Arc::new(Mutex::new(ExtFunc3 {})), true)?;
 
     common::next_all(&mut story, &mut text)?;
     assert_eq!(1, text.len());
@@ -94,7 +94,7 @@ fn external_function_coerce_test() -> Result<(), Box<dyn Error>> {
     let mut story = Story::new(&json_string)?;
     let mut text: Vec<String> = Vec::new();
 
-    story.bind_external_function("externalFunction", Arc::new(RefCell::new(ExtFunc4 {})), true)?;
+    story.bind_external_function("externalFunction", Arc::new(Mutex::new(ExtFunc4 {})), true)?;
 
     common::next_all(&mut story, &mut text)?;
     assert_eq!(1, text.len());
@@ -144,7 +144,7 @@ fn variable_observers_test() -> Result<(), Box<dyn Error>> {
     let mut story = Story::new(&json_string)?;
     let mut text: Vec<String> = Vec::new();
 
-    story.observe_variable("x", Arc::new(RefCell::new(VObserver { expected_value: 5 })))?;
+    story.observe_variable("x", Arc::new(Mutex::new(VObserver { expected_value: 5 })))?;
 
     common::next_all(&mut story, &mut text)?;
     story.choose_choice_index(0)?;

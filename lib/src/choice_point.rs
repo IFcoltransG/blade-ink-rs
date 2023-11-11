@@ -1,5 +1,5 @@
 use core::fmt;
-use std::{cell::RefCell, sync::Arc};
+use std::{sync::Mutex, sync::Arc};
 
 use crate::{
     container::Container,
@@ -14,7 +14,7 @@ pub struct ChoicePoint {
     is_invisible_default: bool,
     once_only: bool,
     has_condition: bool,
-    path_on_choice: RefCell<Path>,
+    path_on_choice: Mutex<Path>,
 }
 
 impl ChoicePoint {
@@ -26,7 +26,7 @@ impl ChoicePoint {
             is_invisible_default: (flags & 8) > 0,
             once_only: (flags & 16) > 0,
             has_condition: (flags & 1) > 0,
-            path_on_choice: RefCell::new(Path::new_with_components_string(Some(
+            path_on_choice: Mutex::new(Path::new_with_components_string(Some(
                 path_string_on_choice,
             ))),
         }

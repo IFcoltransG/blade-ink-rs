@@ -1,5 +1,5 @@
 use std::{
-    cell::RefCell,
+    sync::Mutex,
     collections::{HashMap, HashSet},
     sync::Arc,
 };
@@ -22,7 +22,7 @@ pub(crate) struct VariablesState {
     pub global_variables: HashMap<String, Arc<Value>>,
     pub default_global_variables: HashMap<String, Arc<Value>>,
     pub batch_observing_variable_changes: bool,
-    pub callstack: Arc<RefCell<CallStack>>,
+    pub callstack: Arc<Mutex<CallStack>>,
     pub changed_variables_for_batch_obs: Option<HashSet<String>>,
     pub patch: Option<StatePatch>,
     list_defs_origin: Arc<ListDefinitionsOrigin>,
@@ -30,7 +30,7 @@ pub(crate) struct VariablesState {
 
 impl VariablesState {
     pub fn new(
-        callstack: Arc<RefCell<CallStack>>,
+        callstack: Arc<Mutex<CallStack>>,
         list_defs_origin: Arc<ListDefinitionsOrigin>,
     ) -> VariablesState {
         VariablesState {
@@ -323,7 +323,7 @@ impl VariablesState {
         self.get_variable_with_name(&pointer.variable_name, pointer.context_index)
     }
 
-    pub fn set_callstack(&mut self, callstack: Arc<RefCell<CallStack>>) {
+    pub fn set_callstack(&mut self, callstack: Arc<Mutex<CallStack>>) {
         self.callstack = callstack;
     }
 

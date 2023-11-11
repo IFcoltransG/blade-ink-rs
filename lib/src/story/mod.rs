@@ -5,7 +5,7 @@ use crate::{
     story_callbacks::{ErrorHandler, ExternalFunctionDef, VariableObserver},
     story_state::StoryState,
 };
-use std::{cell::RefCell, collections::HashMap, sync::Arc};
+use std::{sync::Mutex, collections::HashMap, sync::Arc};
 
 /// The current version of the Ink story file format.
 pub const INK_VERSION_CURRENT: i32 = 21;
@@ -31,9 +31,9 @@ pub struct Story {
     async_saving: bool,
     prev_containers: Vec<Arc<Container>>,
     list_definitions: Arc<ListDefinitionsOrigin>,
-    pub(crate) on_error: Option<Arc<RefCell<dyn ErrorHandler>>>,
+    pub(crate) on_error: Option<Arc<Mutex<dyn ErrorHandler>>>,
     pub(crate) state_snapshot_at_last_new_line: Option<StoryState>,
-    pub(crate) variable_observers: HashMap<String, Vec<Arc<RefCell<dyn VariableObserver>>>>,
+    pub(crate) variable_observers: HashMap<String, Vec<Arc<Mutex<dyn VariableObserver>>>>,
     pub(crate) has_validated_externals: bool,
     pub(crate) allow_external_function_fallbacks: bool,
     pub(crate) saw_lookahead_unsafe_function_after_new_line: bool,

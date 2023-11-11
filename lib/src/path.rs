@@ -1,17 +1,18 @@
 use std::{
-    cell::OnceCell,
     fmt,
     hash::{Hash, Hasher},
+    sync::OnceLock,
 };
 
 const PARENT_ID: &str = "^";
 
-/// The componentsString field from the C# impl. has been removed and it is always generated dinamically from the components field.
+/// The componentsString field from the C# impl. has been removed and it is
+/// always generated dinamically from the components field.
 #[derive(Eq, Clone, Default)]
 pub struct Path {
     components: Vec<Component>,
     is_relative: bool,
-    components_string: OnceCell<String>,
+    components_string: OnceLock<String>,
 }
 
 impl Path {
@@ -69,7 +70,7 @@ impl Path {
             }
         }
 
-        let cs_cell = OnceCell::new();
+        let cs_cell = OnceLock::new();
         let _ = cs_cell.set(cs);
 
         Path {

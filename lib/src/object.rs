@@ -1,6 +1,6 @@
 use std::{
     any::Any,
-    cell::RefCell,
+    sync::Mutex,
     fmt::Display,
     sync::{Arc, Weak},
 };
@@ -14,16 +14,16 @@ use crate::{
 };
 
 pub struct Object {
-    parent: RefCell<Weak<Container>>,
-    path: RefCell<Option<Path>>,
+    parent: Mutex<Weak<Container>>,
+    path: Mutex<Option<Path>>,
     // debug_metadata: DebugMetadata,
 }
 
 impl Object {
     pub fn new() -> Object {
         Object {
-            parent: RefCell::new(Weak::new()),
-            path: RefCell::new(None),
+            parent: Mutex::new(Weak::new()),
+            path: Mutex::new(None),
         }
     }
 
