@@ -9,12 +9,12 @@ use crate::{
     story_error::StoryError,
     value_type::ValueType,
 };
-use std::rc::Rc;
+use std::sync::Arc;
 
 /// # Navigation
 /// Methods to access specific sections of the story.
 impl Story {
-    pub(crate) fn get_main_content_container(&self) -> Rc<Container> {
+    pub(crate) fn get_main_content_container(&self) -> Arc<Container> {
         match self.temporary_evaluation_container.as_ref() {
             Some(c) => c.clone(),
             None => self.main_content_container.clone(),
@@ -210,7 +210,7 @@ impl Story {
             if !self
                 .prev_containers
                 .iter()
-                .any(|e| Rc::ptr_eq(e, &current_container))
+                .any(|e| Arc::ptr_eq(e, &current_container))
                 || current_container.counting_at_start_only
             {
                 // Check whether this ancestor container is being entered at the start,
@@ -219,7 +219,7 @@ impl Story {
                     .content
                     .first()
                     .map(|first_child| {
-                        Rc::ptr_eq(first_child, &current_child_of_container)
+                        Arc::ptr_eq(first_child, &current_child_of_container)
                             && all_children_entered_at_start
                     })
                     .unwrap_or(false);
@@ -244,7 +244,7 @@ impl Story {
     }
 
     pub(crate) fn pointer_at_path(
-        main_content_container: &Rc<Container>,
+        main_content_container: &Arc<Container>,
         path: &Path,
     ) -> Result<Pointer, StoryError> {
         if path.len() == 0 {
@@ -274,9 +274,9 @@ impl Story {
                 result
             };
 
-        let main_container: Rc<dyn RTObject> = main_content_container.clone();
+        let main_container: Arc<dyn RTObject + Sync + Send> = main_content_container.clone();
 
-        if Rc::ptr_eq(&result.obj, &main_container) && path_length_to_use > 0 {
+        if Arc::ptr_eq(&result.obj, &main_container) && path_length_to_use > 0 {
             return Err(StoryError::InvalidStoryState(format!(
                 "Failed to find content at path '{}', and no approximation of it was possible.",
                 path
@@ -291,7 +291,7 @@ impl Story {
         Ok(p)
     }
 
-    pub(crate) fn knot_container_with_name(&self, name: &str) -> Option<Rc<Container>> {
+    pub(crate) fn knot_container_with_name(&self, name: &str) -> Option<Arc<Container>> {
         let named_container = self.main_content_container.named_content.get(name);
 
         named_container.cloned()

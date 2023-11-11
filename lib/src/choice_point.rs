@@ -1,5 +1,5 @@
 use core::fmt;
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, sync::Arc};
 
 use crate::{
     container::Container,
@@ -32,7 +32,7 @@ impl ChoicePoint {
         }
     }
 
-    pub fn get_choice_target(self: &Rc<Self>) -> Option<Rc<Container>> {
+    pub fn get_choice_target(self: &Arc<Self>) -> Option<Arc<Container>> {
         Object::resolve_path(self.clone(), &self.path_on_choice.borrow()).container()
     }
 
@@ -76,7 +76,7 @@ impl ChoicePoint {
         self.once_only
     }
 
-    pub fn get_path_on_choice(self: &Rc<Self>) -> Path {
+    pub fn get_path_on_choice(self: &Arc<Self>) -> Path {
         // Resolve any relative paths to global ones as we come across them
         if self.path_on_choice.borrow().is_relative() {
             if let Some(choice_target_obj) = self.get_choice_target() {
@@ -87,7 +87,7 @@ impl ChoicePoint {
         self.path_on_choice.borrow().clone()
     }
 
-    pub fn get_path_string_on_choice(self: &Rc<Self>) -> String {
+    pub fn get_path_string_on_choice(self: &Arc<Self>) -> String {
         Object::compact_path_string(self.clone(), &self.get_path_on_choice())
     }
 }

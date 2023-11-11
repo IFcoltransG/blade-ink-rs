@@ -1,13 +1,13 @@
 use std::{
     collections::{HashMap, HashSet},
-    rc::Rc,
+    sync::Arc,
 };
 
 use crate::{container::Container, object::Object, value::Value};
 
 #[derive(Clone)]
 pub struct StatePatch {
-    pub globals: HashMap<String, Rc<Value>>,
+    pub globals: HashMap<String, Arc<Value>>,
     pub changed_variables: HashSet<String>,
     pub visit_counts: HashMap<String, i32>,
     pub turn_indices: HashMap<String, i32>,
@@ -23,21 +23,21 @@ impl StatePatch {
         }
     }
 
-    pub fn get_visit_count(&self, container: &Rc<Container>) -> Option<i32> {
+    pub fn get_visit_count(&self, container: &Arc<Container>) -> Option<i32> {
         let key = Object::get_path(container.as_ref()).to_string();
         self.visit_counts.get(&key).copied()
     }
 
-    pub fn set_visit_count(&mut self, container: &Rc<Container>, count: i32) {
+    pub fn set_visit_count(&mut self, container: &Arc<Container>, count: i32) {
         let key = Object::get_path(container.as_ref()).to_string();
         self.visit_counts.insert(key, count);
     }
 
-    pub fn get_global(&self, name: &str) -> Option<Rc<Value>> {
+    pub fn get_global(&self, name: &str) -> Option<Arc<Value>> {
         self.globals.get(name).cloned()
     }
 
-    pub fn set_global(&mut self, name: &str, value: Rc<Value>) {
+    pub fn set_global(&mut self, name: &str, value: Arc<Value>) {
         self.globals.insert(name.to_string(), value);
     }
 

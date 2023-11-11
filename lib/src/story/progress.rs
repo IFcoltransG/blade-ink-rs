@@ -24,7 +24,7 @@ use crate::{
 use rand::{rngs::StdRng, Rng, SeedableRng};
 use std::{
     collections::{HashMap, VecDeque},
-    rc::Rc,
+    sync::Arc,
     time::Instant,
 };
 
@@ -455,7 +455,7 @@ impl Story {
                         .get_callstack()
                         .borrow()
                         .context_for_variable_named(&var_pointer.variable_name);
-                    current_content_obj = Some(Rc::new(Value::new_variable_pointer(
+                    current_content_obj = Some(Arc::new(Value::new_variable_pointer(
                         &var_pointer.variable_name,
                         context_idx as i32,
                     )));
@@ -499,7 +499,7 @@ impl Story {
 
     pub(crate) fn perform_logic_and_flow_control(
         &mut self,
-        content_obj: &Option<Rc<dyn RTObject>>,
+        content_obj: &Option<Arc<dyn RTObject + Sync + Send>>,
     ) -> Result<bool, StoryError> {
         let content_obj = match content_obj {
             Some(content_obj) => content_obj.clone(),
@@ -604,8 +604,8 @@ impl Story {
                             // the
                             // only problem is when exporting text for viewing, it
                             // skips over numbers etc.
-                            let text: Rc<dyn RTObject> =
-                                Rc::new(Value::new_string(&output.to_string()));
+                            let text: Arc<dyn RTObject + Sync + Send> =
+                                Arc::new(Value::new_string(&output.to_string()));
 
                             self.get_state_mut().push_to_output_stream(text);
                         }
@@ -725,8 +725,8 @@ impl Story {
                     // Since we're iterating backward through the content,
                     // build a stack so that when we build the string,
                     // it's in the right order
-                    let mut content_stack_for_string: VecDeque<Rc<dyn RTObject>> = VecDeque::new();
-                    let mut content_to_retain: VecDeque<Rc<dyn RTObject>> = VecDeque::new();
+                    let mut content_stack_for_string: VecDeque<Arc<dyn RTObject + Sync + Send>> = VecDeque::new();
+                    let mut content_to_retain: VecDeque<Arc<dyn RTObject + Sync + Send>> = VecDeque::new();
 
                     let mut output_count_consumed = 0;
 
@@ -774,18 +774,18 @@ impl Story {
                     // Return to expression evaluation (from content mode)
                     self.get_state().set_in_expression_evaluation(true);
                     self.get_state_mut()
-                        .push_evaluation_stack(Rc::new(Value::new_string(&sb)));
+                        .push_evaluation_stack(Arc::new(Value::new_string(&sb)));
                 }
                 CommandType::NoOp => {}
                 CommandType::ChoiceCount => {
                     let choice_count = self.get_state().get_generated_choices().len();
                     self.get_state_mut()
-                        .push_evaluation_stack(Rc::new(Value::new_int(choice_count as i32)));
+                        .push_evaluation_stack(Arc::new(Value::new_int(choice_count as i32)));
                 }
                 CommandType::Turns => {
                     let current_turn = self.get_state().current_turn_index;
                     self.get_state_mut()
-                        .push_evaluation_stack(Rc::new(Value::new_int(current_turn + 1)));
+                        .push_evaluation_stack(Arc::new(Value::new_int(current_turn + 1)));
                 }
                 CommandType::TurnsSince | CommandType::ReadCount => {
                     let target = self.get_state_mut().pop_evaluation_stack();
@@ -840,7 +840,7 @@ impl Story {
                     }
 
                     self.get_state_mut()
-                        .push_evaluation_stack(Rc::new(Value::new_int(either_count)));
+                        .push_evaluation_stack(Arc::new(Value::new_int(either_count)));
                 }
                 CommandType::Random => {
                     let mut max_int = None;
@@ -892,7 +892,7 @@ impl Story {
                     let chosen_value = (next_random % random_range as u32) as i32 + min_value;
 
                     self.get_state_mut()
-                        .push_evaluation_stack(Rc::new(Value::new_int(chosen_value)));
+                        .push_evaluation_stack(Arc::new(Value::new_int(chosen_value)));
 
                     self.get_state_mut().previous_random = self.get_state().previous_random + 1;
                 }
@@ -917,18 +917,18 @@ impl Story {
 
                     // SEED_RANDOM returns nothing.
                     self.get_state_mut()
-                        .push_evaluation_stack(Rc::new(Void::new()));
+                        .push_evaluation_stack(Arc::new(Void::new()));
                 }
                 CommandType::VisitIndex => {
                     let cpc = self.get_state().get_current_pointer().container.unwrap();
                     let count = self.get_state_mut().visit_count_for_container(&cpc) - 1; // index
                                                                                           // not count
                     self.get_state_mut()
-                        .push_evaluation_stack(Rc::new(Value::new_int(count)));
+                        .push_evaluation_stack(Arc::new(Value::new_int(count)));
                 }
                 CommandType::SequenceShuffleIndex => {
                     let shuffle_index = self.next_sequence_shuffle_index()?;
-                    let v = Rc::new(Value::new_int(shuffle_index));
+                    let v = Arc::new(Value::new_int(shuffle_index));
                     self.get_state_mut().push_evaluation_stack(v);
                 }
                 CommandType::StartThread => {
@@ -1002,7 +1002,7 @@ impl Story {
                     }
 
                     self.get_state_mut()
-                        .push_evaluation_stack(Rc::new(generated_list_value.unwrap()));
+                        .push_evaluation_stack(Arc::new(generated_list_value.unwrap()));
                 }
                 CommandType::ListRange => {
                     let mut p = self.get_state_mut().pop_evaluation_stack();
@@ -1025,7 +1025,7 @@ impl Story {
                         .list_with_sub_range(&min.unwrap().value, &max.unwrap().value);
 
                     self.get_state_mut()
-                        .push_evaluation_stack(Rc::new(Value::new_list(result)));
+                        .push_evaluation_stack(Arc::new(Value::new_list(result)));
                 }
                 CommandType::ListRandom => {
                     let o = self.get_state_mut().pop_evaluation_stack();
@@ -1073,7 +1073,7 @@ impl Story {
                     };
 
                     self.get_state_mut()
-                        .push_evaluation_stack(Rc::new(Value::new_list(new_list)));
+                        .push_evaluation_stack(Arc::new(Value::new_list(new_list)));
                 }
                 CommandType::BeginTag => self
                     .get_state_mut()
@@ -1139,7 +1139,7 @@ impl Story {
                         }
 
                         let choice_tag =
-                            Rc::new(Tag::new(&StoryState::clean_output_whitespace(&sb)));
+                            Arc::new(Tag::new(&StoryState::clean_output_whitespace(&sb)));
                         // Pushing to the evaluation stack means it gets picked up
                         // when a Choice is generated from the next Choice Point.
                         self.get_state_mut().push_evaluation_stack(choice_tag);
@@ -1183,7 +1183,7 @@ impl Story {
             .into_any()
             .downcast::<VariableReference>()
         {
-            let found_value: Rc<Value>;
+            let found_value: Arc<Value>;
 
             // Explicit read count value
             if var_ref.path_for_count.is_some() {
@@ -1191,7 +1191,7 @@ impl Story {
                 let count = self
                     .get_state_mut()
                     .visit_count_for_container(container.as_ref().unwrap());
-                found_value = Rc::new(Value::new_int(count));
+                found_value = Arc::new(Value::new_int(count));
             }
             // Normal variable reference
             else {
@@ -1204,7 +1204,7 @@ impl Story {
                     None => {
                         self.add_error(&format!("Variable not found: '{}'. Using default value of 0 (false). This can happen with temporary variables if the declaration hasn't yet been hit. Globals are always given a default value on load if a value doesn't exist in the save state.", var_ref.name), true);
 
-                        found_value = Rc::new(Value::new_int(0));
+                        found_value = Arc::new(Value::new_int(0));
                     }
                 }
             }
@@ -1286,7 +1286,7 @@ impl Story {
                 // something to chomp on if it needs it
                 if self.get_state().get_in_expression_evaluation() {
                     self.get_state_mut()
-                        .push_evaluation_stack(Rc::new(Void::new()));
+                        .push_evaluation_stack(Arc::new(Void::new()));
                 }
 
                 did_pop = true;
@@ -1345,13 +1345,13 @@ impl Story {
                 break;
             }
 
-            let rto: Rc<dyn RTObject> = container;
+            let rto: Arc<dyn RTObject + Sync + Send> = container;
             let index_in_ancestor = next_ancestor
                 .as_ref()
                 .unwrap()
                 .content
                 .iter()
-                .position(|s| Rc::ptr_eq(s, &rto));
+                .position(|s| Arc::ptr_eq(s, &rto));
             if index_in_ancestor.is_none() {
                 break;
             }
@@ -1420,7 +1420,7 @@ impl Story {
         OutputStateChange::NoChange
     }
 
-    pub(crate) fn visit_container(&mut self, container: &Rc<Container>, at_start: bool) {
+    pub(crate) fn visit_container(&mut self, container: &Arc<Container>, at_start: bool) {
         if !container.counting_at_start_only || at_start {
             if container.visits_should_be_counted {
                 self.get_state_mut()
@@ -1441,7 +1441,7 @@ impl Story {
     /// Once [`can_continue`](Story::can_continue) becomes `false`, this
     /// vector will be populated, and is usually (but not always) on the
     /// final [`cont`](Story::cont) step.
-    pub fn get_current_choices(&self) -> Vec<Rc<Choice>> {
+    pub fn get_current_choices(&self) -> Vec<Arc<Choice>> {
         // Don't include invisible choices for external usage.
         let mut choices = Vec::new();
 

@@ -5,7 +5,7 @@ use crate::{
     story_callbacks::{ErrorHandler, ExternalFunctionDef, VariableObserver},
     story_state::StoryState,
 };
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, sync::Arc};
 
 /// The current version of the Ink story file format.
 pub const INK_VERSION_CURRENT: i32 = 21;
@@ -23,17 +23,17 @@ pub(crate) enum OutputStateChange {
 /// A `Story` is the core struct representing a complete Ink narrative,
 /// managing evaluation and state.
 pub struct Story {
-    main_content_container: Rc<Container>,
+    main_content_container: Arc<Container>,
     state: StoryState,
-    temporary_evaluation_container: Option<Rc<Container>>,
+    temporary_evaluation_container: Option<Arc<Container>>,
     recursive_continue_count: usize,
     async_continue_active: bool,
     async_saving: bool,
-    prev_containers: Vec<Rc<Container>>,
-    list_definitions: Rc<ListDefinitionsOrigin>,
-    pub(crate) on_error: Option<Rc<RefCell<dyn ErrorHandler>>>,
+    prev_containers: Vec<Arc<Container>>,
+    list_definitions: Arc<ListDefinitionsOrigin>,
+    pub(crate) on_error: Option<Arc<RefCell<dyn ErrorHandler>>>,
     pub(crate) state_snapshot_at_last_new_line: Option<StoryState>,
-    pub(crate) variable_observers: HashMap<String, Vec<Rc<RefCell<dyn VariableObserver>>>>,
+    pub(crate) variable_observers: HashMap<String, Vec<Arc<RefCell<dyn VariableObserver>>>>,
     pub(crate) has_validated_externals: bool,
     pub(crate) allow_external_function_fallbacks: bool,
     pub(crate) saw_lookahead_unsafe_function_after_new_line: bool,
@@ -50,7 +50,7 @@ mod misc {
         value::Value,
     };
     use rand::{rngs::StdRng, Rng, SeedableRng};
-    use std::{collections::HashMap, rc::Rc};
+    use std::{collections::HashMap, sync::Arc};
 
     impl Story {
         /// Construct a `Story` out of a JSON string that was compiled with
@@ -88,7 +88,7 @@ mod misc {
                 };
 
             let list_definitions = match json.get("listDefs") {
-                Some(def) => Rc::new(json_read::jtoken_to_list_definitions(def)?),
+                Some(def) => Arc::new(json_read::jtoken_to_list_definitions(def)?),
                 None => {
                     return Err(
                         StoryError::BadJson("List Definitions node for ink not found. Are you sure it's a valid .ink.json file?"
@@ -151,7 +151,7 @@ mod misc {
             sb
         }
 
-        pub(crate) fn is_truthy(&self, obj: Rc<dyn RTObject>) -> Result<bool, StoryError> {
+        pub(crate) fn is_truthy(&self, obj: Arc<dyn RTObject + Sync + Send>) -> Result<bool, StoryError> {
             let truthy = false;
 
             if let Some(val) = obj.as_ref().as_any().downcast_ref::<Value>() {

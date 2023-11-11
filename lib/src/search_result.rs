@@ -1,15 +1,15 @@
-use std::rc::Rc;
+use std::sync::Arc;
 
 use crate::{container::Container, object::RTObject};
 
 #[derive(Clone)]
 pub struct SearchResult {
-    pub obj: Rc<dyn RTObject>,
+    pub obj: Arc<dyn RTObject + Sync + Send>,
     pub approximate: bool,
 }
 
 impl SearchResult {
-    pub fn new(obj: Rc<dyn RTObject>, approximate: bool) -> Self {
+    pub fn new(obj: Arc<dyn RTObject + Sync + Send>, approximate: bool) -> Self {
         SearchResult { obj, approximate }
     }
 
@@ -20,7 +20,7 @@ impl SearchResult {
         }
     }
 
-    pub fn correct_obj(&self) -> Option<Rc<dyn RTObject>> {
+    pub fn correct_obj(&self) -> Option<Arc<dyn RTObject + Sync + Send>> {
         if self.approximate {
             None
         } else {
@@ -28,7 +28,7 @@ impl SearchResult {
         }
     }
 
-    pub fn container(&self) -> Option<Rc<Container>> {
+    pub fn container(&self) -> Option<Arc<Container>> {
         let c = self.obj.clone().into_any().downcast::<Container>();
 
         match c {

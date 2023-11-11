@@ -1,7 +1,7 @@
 use std::{
     cell::RefCell,
     collections::{HashMap, HashSet},
-    rc::Rc,
+    sync::Arc,
 };
 
 use serde_json::Map;
@@ -19,19 +19,19 @@ use crate::{
 
 #[derive(Clone)]
 pub(crate) struct VariablesState {
-    pub global_variables: HashMap<String, Rc<Value>>,
-    pub default_global_variables: HashMap<String, Rc<Value>>,
+    pub global_variables: HashMap<String, Arc<Value>>,
+    pub default_global_variables: HashMap<String, Arc<Value>>,
     pub batch_observing_variable_changes: bool,
-    pub callstack: Rc<RefCell<CallStack>>,
+    pub callstack: Arc<RefCell<CallStack>>,
     pub changed_variables_for_batch_obs: Option<HashSet<String>>,
     pub patch: Option<StatePatch>,
-    list_defs_origin: Rc<ListDefinitionsOrigin>,
+    list_defs_origin: Arc<ListDefinitionsOrigin>,
 }
 
 impl VariablesState {
     pub fn new(
-        callstack: Rc<RefCell<CallStack>>,
-        list_defs_origin: Rc<ListDefinitionsOrigin>,
+        callstack: Arc<RefCell<CallStack>>,
+        list_defs_origin: Arc<ListDefinitionsOrigin>,
     ) -> VariablesState {
         VariablesState {
             global_variables: HashMap::new(),
@@ -90,7 +90,7 @@ impl VariablesState {
     pub fn assign(
         &mut self,
         var_ass: &VariableAssignment,
-        value: Rc<Value>,
+        value: Arc<Value>,
     ) -> Result<(), StoryError> {
         let mut name = var_ass.variable_name.to_string();
         let mut context_index = -1;
@@ -155,7 +155,7 @@ impl VariablesState {
     // pointer that more specifically points to the exact instance: whether it's
     // global,
     // or the exact position of a temporary on the callstack.
-    fn resolve_variable_pointer(&self, var_pointer: &VariablePointerValue) -> Rc<Value> {
+    fn resolve_variable_pointer(&self, var_pointer: &VariablePointerValue) -> Arc<Value> {
         let mut context_index = var_pointer.context_index;
         if context_index == -1 {
             context_index = self.get_context_index_of_variable_named(&var_pointer.variable_name);
@@ -174,7 +174,7 @@ impl VariablesState {
             }
         }
 
-        Rc::new(Value::new_variable_pointer(
+        Arc::new(Value::new_variable_pointer(
             &var_pointer.variable_name,
             context_index,
         ))
@@ -191,7 +191,7 @@ impl VariablesState {
 
         let val = Value::from_value_type(value_type);
 
-        let notify = self.set_global(variable_name, Rc::new(val));
+        let notify = self.set_global(variable_name, Arc::new(val));
 
         Ok(notify)
     }
@@ -229,7 +229,7 @@ impl VariablesState {
         return self.callstack.borrow().get_current_element_index();
     }
 
-    fn get_raw_variable_with_name(&self, name: &str, context_index: i32) -> Option<Rc<Value>> {
+    fn get_raw_variable_with_name(&self, name: &str, context_index: i32) -> Option<Arc<Value>> {
         // 0 context = global
         if context_index == 0 || context_index == -1 {
             if let Some(patch) = &self.patch {
@@ -270,8 +270,8 @@ impl VariablesState {
     }
 
     // Returns true if global var has changed and we need to notify observers
-    fn set_global(&mut self, name: &str, value: Rc<Value>) -> bool {
-        let mut old_value: Option<Rc<Value>> = None;
+    fn set_global(&mut self, name: &str, value: Arc<Value>) -> bool {
+        let mut old_value: Option<Arc<Value>> = None;
 
         if let Some(patch) = &self.patch {
             old_value = patch.get_global(name);
@@ -292,7 +292,7 @@ impl VariablesState {
                 .insert(name.to_string(), value.clone());
         }
 
-        if old_value.is_none() || !Rc::ptr_eq(old_value.as_ref().unwrap(), &value) {
+        if old_value.is_none() || !Arc::ptr_eq(old_value.as_ref().unwrap(), &value) {
             if self.batch_observing_variable_changes {
                 if let Some(patch) = &mut self.patch {
                     patch.add_changed_variable(name);
@@ -307,7 +307,7 @@ impl VariablesState {
         false
     }
 
-    pub fn get_variable_with_name(&self, name: &str, context_index: i32) -> Option<Rc<Value>> {
+    pub fn get_variable_with_name(&self, name: &str, context_index: i32) -> Option<Arc<Value>> {
         let var_value = self.get_raw_variable_with_name(name, context_index);
         // Get value from pointer?
         if let Some(vv) = var_value.clone() {
@@ -319,11 +319,11 @@ impl VariablesState {
         var_value
     }
 
-    fn value_at_variable_pointer(&self, pointer: &VariablePointerValue) -> Option<Rc<Value>> {
+    fn value_at_variable_pointer(&self, pointer: &VariablePointerValue) -> Option<Arc<Value>> {
         self.get_variable_with_name(&pointer.variable_name, pointer.context_index)
     }
 
-    pub fn set_callstack(&mut self, callstack: Rc<RefCell<CallStack>>) {
+    pub fn set_callstack(&mut self, callstack: Arc<RefCell<CallStack>>) {
         self.callstack = callstack;
     }
 

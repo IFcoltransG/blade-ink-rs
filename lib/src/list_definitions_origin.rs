@@ -1,11 +1,11 @@
-use std::{collections::HashMap, rc::Rc};
+use std::{collections::HashMap, sync::Arc};
 
 use crate::{ink_list::InkList, list_definition::ListDefinition, value::Value};
 
 #[derive(Clone)]
 pub struct ListDefinitionsOrigin {
     lists: HashMap<String, ListDefinition>,
-    all_unambiguous_list_value_cache: HashMap<String, Rc<Value>>,
+    all_unambiguous_list_value_cache: HashMap<String, Arc<Value>>,
 }
 
 impl ListDefinitionsOrigin {
@@ -24,7 +24,7 @@ impl ListDefinitionsOrigin {
                 let mut l = InkList::new();
                 l.items.insert(key.clone(), *val);
 
-                let list_value = Rc::new(Value::new_list(l));
+                let list_value = Arc::new(Value::new_list(l));
 
                 list_definitions_origin
                     .all_unambiguous_list_value_cache
@@ -42,7 +42,7 @@ impl ListDefinitionsOrigin {
         self.lists.get(name)
     }
 
-    pub fn find_single_item_list_with_name(&self, name: &str) -> Option<&Rc<Value>> {
+    pub fn find_single_item_list_with_name(&self, name: &str) -> Option<&Arc<Value>> {
         self.all_unambiguous_list_value_cache.get(name)
     }
 }

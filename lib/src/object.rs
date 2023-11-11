@@ -2,7 +2,7 @@ use std::{
     any::Any,
     cell::RefCell,
     fmt::Display,
-    rc::{Rc, Weak},
+    sync::{Arc, Weak},
 };
 
 use as_any::{AsAny, Downcast};
@@ -16,7 +16,7 @@ use crate::{
 pub struct Object {
     parent: RefCell<Weak<Container>>,
     path: RefCell<Option<Path>>,
-    //debug_metadata: DebugMetadata,
+    // debug_metadata: DebugMetadata,
 }
 
 impl Object {
@@ -31,12 +31,12 @@ impl Object {
         self.parent.borrow().upgrade().is_none()
     }
 
-    pub fn get_parent(&self) -> Option<Rc<Container>> {
+    pub fn get_parent(&self) -> Option<Arc<Container>> {
         self.parent.borrow().upgrade()
     }
 
-    pub fn set_parent(&self, parent: &Rc<Container>) {
-        self.parent.replace(Rc::downgrade(parent));
+    pub fn set_parent(&self, parent: &Arc<Container>) {
+        self.parent.replace(Arc::downgrade(parent));
     }
 
     pub fn get_path(rtobject: &dyn RTObject) -> Path {
@@ -105,7 +105,7 @@ impl Object {
             .clone()
     }
 
-    pub fn resolve_path(rtobject: Rc<dyn RTObject>, path: &Path) -> SearchResult {
+    pub fn resolve_path(rtobject: Arc<dyn RTObject + Sync + Send>, path: &Path) -> SearchResult {
         if path.is_relative() {
             let mut p = path.clone();
             let mut nearest_container = rtobject.clone().into_any().downcast::<Container>().ok();
@@ -121,7 +121,10 @@ impl Object {
         }
     }
 
-    pub fn convert_path_to_relative(rtobject: &Rc<dyn RTObject>, global_path: &Path) -> Path {
+    pub fn convert_path_to_relative(
+        rtobject: &Arc<dyn RTObject + Sync + Send>,
+        global_path: &Path,
+    ) -> Path {
         // 1. Find last shared ancestor
         // 2. Drill up using ".." style (actually represented as "^")
         // 3. Re-build downward chain from common ancestor
@@ -160,7 +163,10 @@ impl Object {
         Path::new(&new_path_comps, true)
     }
 
-    pub fn compact_path_string(rtobject: Rc<dyn RTObject>, other_path: &Path) -> String {
+    pub fn compact_path_string(
+        rtobject: Arc<dyn RTObject + Sync + Send>,
+        other_path: &Path,
+    ) -> String {
         let global_path_str: String;
         let relative_path_str: String;
 
@@ -182,7 +188,7 @@ impl Object {
         }
     }
 
-    pub fn get_root_container(rtobject: Rc<dyn RTObject>) -> Rc<Container> {
+    pub fn get_root_container(rtobject: Arc<dyn RTObject + Sync + Send>) -> Arc<Container> {
         let mut ancestor = rtobject;
 
         while let Some(p) = ancestor.get_object().get_parent() {
@@ -203,12 +209,12 @@ impl Default for Object {
 }
 
 pub trait IntoAny: AsAny {
-    fn into_any(self: Rc<Self>) -> Rc<dyn Any>;
+    fn into_any(self: Arc<Self>) -> Arc<dyn Any + Sync + Send>;
 }
 
-impl<T: Any> IntoAny for T {
+impl<T: Any + Sync + Send> IntoAny for T {
     #[inline(always)]
-    fn into_any(self: Rc<Self>) -> Rc<dyn Any> {
+    fn into_any(self: Arc<Self>) -> Arc<dyn Any + Sync + Send> {
         self
     }
 }

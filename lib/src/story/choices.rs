@@ -2,7 +2,7 @@ use crate::{
     choice::Choice, choice_point::ChoicePoint, object::Object, path::Path, story::Story,
     story_error::StoryError, tag::Tag, value::Value,
 };
-use std::rc::Rc;
+use std::sync::Arc;
 /// # Choices
 /// Methods to get and select choices.
 impl Story {
@@ -49,8 +49,8 @@ impl Story {
 
     pub(crate) fn process_choice(
         &mut self,
-        choice_point: &Rc<ChoicePoint>,
-    ) -> Result<Option<Rc<Choice>>, StoryError> {
+        choice_point: &Arc<ChoicePoint>,
+    ) -> Result<Option<Arc<Choice>>, StoryError> {
         let mut show_choice = true;
 
         // Don't create choice if choice point doesn't pass conditional
@@ -92,7 +92,7 @@ impl Story {
 
         start_text.push_str(&choice_only_text);
 
-        let choice = Rc::new(Choice::new(
+        let choice = Arc::new(Choice::new(
             choice_point.get_path_on_choice(),
             Object::get_path(choice_point.as_ref()).to_string(),
             choice_point.is_invisible_default(),
@@ -113,7 +113,7 @@ impl Story {
         // Is a default invisible choice the ONLY choice?
         // var invisibleChoices = allChoices.Where (c =>
         // c.choicePoint.isInvisibleDefault).ToList();
-        let mut invisible_choices: Vec<Rc<Choice>> = Vec::new();
+        let mut invisible_choices: Vec<Arc<Choice>> = Vec::new();
         for c in all_choices {
             if c.is_invisible_default {
                 invisible_choices.push(c.clone());

@@ -1,4 +1,4 @@
-use std::{cell::RefCell, fmt, rc::Rc};
+use std::{cell::RefCell, fmt, sync::Arc};
 
 use crate::{
     container::Container,
@@ -47,7 +47,7 @@ impl Divert {
         value.map(|value| Path::new_with_components_string(Some(value)))
     }
 
-    pub fn get_target_path_string(self: &Rc<Self>) -> Option<String> {
+    pub fn get_target_path_string(self: &Arc<Self>) -> Option<String> {
         self.get_target_path()
             .as_ref()
             .map(|p| self.compact_path_string(p))
@@ -79,7 +79,7 @@ impl Divert {
         }
     }
 
-    pub fn get_target_pointer(self: &Rc<Self>) -> Pointer {
+    pub fn get_target_pointer(self: &Arc<Self>) -> Pointer {
         let target_pointer_null = self.target_pointer.borrow().is_null();
         if target_pointer_null {
             let target_obj =
@@ -115,7 +115,7 @@ impl Divert {
         self.target_pointer.borrow().clone()
     }
 
-    pub fn get_target_path(self: &Rc<Self>) -> Option<Path> {
+    pub fn get_target_path(self: &Arc<Self>) -> Option<Path> {
         // Resolve any relative paths to global ones as we come across them
         let target_path = self.target_path.borrow();
 

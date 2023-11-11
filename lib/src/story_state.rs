@@ -1,4 +1,4 @@
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, sync::Arc};
 
 use crate::{
     callstack::CallStack,
@@ -38,8 +38,8 @@ pub(crate) struct StoryState {
     output_stream_tags_dirty: bool,
     pub variables_state: VariablesState,
     alive_flow_names_dirty: bool,
-    pub evaluation_stack: Vec<Rc<dyn RTObject>>,
-    main_content_container: Rc<Container>,
+    pub evaluation_stack: Vec<Arc<dyn RTObject + Sync + Send>>,
+    main_content_container: Arc<Container>,
     current_errors: Vec<String>,
     current_warnings: Vec<String>,
     current_text: Option<String>,
@@ -52,13 +52,13 @@ pub(crate) struct StoryState {
     pub story_seed: i32,
     pub previous_random: i32,
     current_tags: Vec<String>,
-    list_definitions: Rc<ListDefinitionsOrigin>,
+    list_definitions: Arc<ListDefinitionsOrigin>,
 }
 
 impl StoryState {
     pub fn new(
-        main_content_container: Rc<Container>,
-        list_definitions: Rc<ListDefinitionsOrigin>,
+        main_content_container: Arc<Container>,
+        list_definitions: Arc<ListDefinitionsOrigin>,
     ) -> StoryState {
         let current_flow = Flow::new(DEFAULT_FLOW_NAME, main_content_container.clone());
         let callstack = current_flow.callstack.clone();
@@ -111,7 +111,7 @@ impl StoryState {
             .clone()
     }
 
-    pub fn get_callstack(&self) -> &Rc<RefCell<CallStack>> {
+    pub fn get_callstack(&self) -> &Arc<RefCell<CallStack>> {
         &self.current_flow.callstack
     }
 
@@ -119,7 +119,7 @@ impl StoryState {
         self.did_safe_exit = did_safe_exit;
     }
 
-    pub fn reset_output(&mut self, objs: Option<Vec<Rc<dyn RTObject>>>) {
+    pub fn reset_output(&mut self, objs: Option<Vec<Arc<dyn RTObject + Sync + Send>>>) {
         self.get_output_stream_mut().clear();
         if let Some(objs) = objs {
             for o in objs {
@@ -129,11 +129,11 @@ impl StoryState {
         self.output_stream_dirty();
     }
 
-    pub fn get_generated_choices_mut(&mut self) -> &mut Vec<Rc<Choice>> {
+    pub fn get_generated_choices_mut(&mut self) -> &mut Vec<Arc<Choice>> {
         &mut self.current_flow.current_choices
     }
 
-    pub fn get_generated_choices(&self) -> &Vec<Rc<Choice>> {
+    pub fn get_generated_choices(&self) -> &Vec<Arc<Choice>> {
         &self.current_flow.current_choices
     }
 
@@ -153,11 +153,11 @@ impl StoryState {
         &self.current_warnings
     }
 
-    pub fn get_output_stream(&self) -> &Vec<Rc<(dyn RTObject)>> {
+    pub fn get_output_stream(&self) -> &Vec<Arc<(dyn RTObject)>> {
         &self.current_flow.output_stream
     }
 
-    fn get_output_stream_mut(&mut self) -> &mut Vec<Rc<(dyn RTObject)>> {
+    fn get_output_stream_mut(&mut self) -> &mut Vec<Arc<(dyn RTObject)>> {
         &mut self.current_flow.output_stream
     }
 
@@ -342,7 +342,7 @@ impl StoryState {
             .in_expression_evaluation = value;
     }
 
-    pub fn push_evaluation_stack(&mut self, obj: Rc<dyn RTObject>) {
+    pub fn push_evaluation_stack(&mut self, obj: Arc<dyn RTObject + Sync + Send>) {
         if let Some(list) = Value::get_list_value(obj.as_ref()) {
             let origin_names = list.get_origin_names();
 
@@ -359,7 +359,7 @@ impl StoryState {
         self.evaluation_stack.push(obj);
     }
 
-    pub fn push_to_output_stream(&mut self, obj: Rc<dyn RTObject>) {
+    pub fn push_to_output_stream(&mut self, obj: Arc<dyn RTObject + Sync + Send>) {
         let text = Value::get_string_value(obj.as_ref());
 
         if let Some(s) = text {
@@ -367,7 +367,7 @@ impl StoryState {
 
             if let Some(list_text) = list_text {
                 for text_obj in list_text {
-                    self.push_to_output_stream_individual(Rc::new(text_obj));
+                    self.push_to_output_stream_individual(Arc::new(text_obj));
                 }
                 self.output_stream_dirty();
                 return;
@@ -377,7 +377,7 @@ impl StoryState {
         self.push_to_output_stream_individual(obj);
     }
 
-    pub fn increment_visit_count_for_container(&mut self, container: &Rc<Container>) {
+    pub fn increment_visit_count_for_container(&mut self, container: &Arc<Container>) {
         let has_patch = self.patch.is_some();
 
         if has_patch {
@@ -400,7 +400,7 @@ impl StoryState {
         }
     }
 
-    pub fn visit_count_for_container(&mut self, container: &Rc<Container>) -> i32 {
+    pub fn visit_count_for_container(&mut self, container: &Arc<Container>) -> i32 {
         if !container.visits_should_be_counted {
             // TODO
 
@@ -511,7 +511,7 @@ impl StoryState {
         Some(list_texts)
     }
 
-    fn push_to_output_stream_individual(&mut self, obj: Rc<dyn RTObject>) {
+    fn push_to_output_stream_individual(&mut self, obj: Arc<dyn RTObject + Sync + Send>) {
         let glue = obj.clone().into_any().downcast::<Glue>();
         let text = Value::get_string_value(obj.as_ref());
         let mut include_in_output = true;
@@ -727,7 +727,7 @@ impl StoryState {
             .current_pointer = Pointer::start_of(self.main_content_container.clone())
     }
 
-    pub fn get_current_choices(&self) -> Option<&Vec<Rc<Choice>>> {
+    pub fn get_current_choices(&self) -> Option<&Vec<Arc<Choice>>> {
         // If we can continue generating text content rather than choices,
         // then we reflect the choice list as being empty, since choices
         // should always come at the end.
@@ -750,7 +750,7 @@ impl StoryState {
         // If the patch is applied, then this new flow will replace the old one in
         // _namedFlows
         copy.current_flow.name = self.current_flow.name.clone();
-        copy.current_flow.callstack = Rc::new(RefCell::new(
+        copy.current_flow.callstack = Arc::new(RefCell::new(
             self.current_flow.callstack.as_ref().borrow().clone(),
         ));
         copy.current_flow.current_choices = self.current_flow.current_choices.clone();
@@ -860,16 +860,16 @@ impl StoryState {
         self.output_stream_dirty();
     }
 
-    pub fn pop_evaluation_stack(&mut self) -> Rc<dyn RTObject> {
+    pub fn pop_evaluation_stack(&mut self) -> Arc<dyn RTObject + Sync + Send> {
         self.evaluation_stack.pop().unwrap()
     }
 
     pub fn pop_evaluation_stack_multiple(
         &mut self,
         number_of_objects: usize,
-    ) -> Vec<Rc<dyn RTObject>> {
+    ) -> Vec<Arc<dyn RTObject + Sync + Send>> {
         let start = self.evaluation_stack.len() - number_of_objects;
-        let obj: Vec<Rc<dyn RTObject>> = self.evaluation_stack.drain(start..).collect();
+        let obj: Vec<Arc<dyn RTObject + Sync + Send>> = self.evaluation_stack.drain(start..).collect();
 
         obj
     }
@@ -955,13 +955,13 @@ impl StoryState {
         }
     }
 
-    pub fn peek_evaluation_stack(&self) -> Option<&Rc<dyn RTObject>> {
+    pub fn peek_evaluation_stack(&self) -> Option<&Arc<dyn RTObject + Sync + Send>> {
         self.evaluation_stack.last()
     }
 
     pub fn start_function_evaluation_from_game(
         &mut self,
-        func_container: Rc<Container>,
+        func_container: Arc<Container>,
         arguments: Option<&Vec<ValueType>>,
     ) -> Result<(), StoryError> {
         self.get_callstack().borrow_mut().push(
@@ -998,7 +998,7 @@ impl StoryState {
                     }
                 };
 
-                self.push_evaluation_stack(Rc::new(value));
+                self.push_evaluation_stack(Arc::new(value));
             }
         }
 

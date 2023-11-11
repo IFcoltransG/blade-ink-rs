@@ -1,4 +1,4 @@
-use std::{fmt, rc::Rc};
+use std::{fmt, sync::Arc};
 
 use crate::{
     container::Container,
@@ -29,7 +29,7 @@ impl VariableReference {
         }
     }
 
-    pub fn get_container_for_count(self: &Rc<Self>) -> Result<Rc<Container>, String> {
+    pub fn get_container_for_count(self: &Arc<Self>) -> Result<Arc<Container>, String> {
         if let Some(path) = &self.path_for_count {
             Ok(Object::resolve_path(self.clone(), path)
                 .container()
@@ -39,7 +39,7 @@ impl VariableReference {
         }
     }
 
-    pub fn get_path_string_for_count(self: &Rc<Self>) -> Option<String> {
+    pub fn get_path_string_for_count(self: &Arc<Self>) -> Option<String> {
         self.path_for_count
             .as_ref()
             .map(|path_for_count| Object::compact_path_string(self.clone(), path_for_count))

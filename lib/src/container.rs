@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fmt, rc::Rc};
+use std::{collections::HashMap, fmt, sync::Arc};
 
 use as_any::Downcast;
 
@@ -17,8 +17,8 @@ const COUNTFLAGS_COUNTSTARTONLY: i32 = 4;
 pub struct Container {
     obj: Object,
     pub name: Option<String>,
-    pub content: Vec<Rc<dyn RTObject>>,
-    pub named_content: HashMap<String, Rc<Container>>,
+    pub content: Vec<Arc<dyn RTObject + Sync + Send>>,
+    pub named_content: HashMap<String, Arc<Container>>,
     pub visits_should_be_counted: bool,
     pub turn_index_should_be_counted: bool,
     pub counting_at_start_only: bool,
@@ -28,9 +28,9 @@ impl Container {
     pub fn new(
         name: Option<String>,
         count_flags: i32,
-        content: Vec<Rc<dyn RTObject>>,
-        named_content: HashMap<String, Rc<Container>>,
-    ) -> Rc<Container> {
+        content: Vec<Arc<dyn RTObject + Sync + Send>>,
+        named_content: HashMap<String, Arc<Container>>,
+    ) -> Arc<Container> {
         let mut named_content = named_content;
 
         content.iter().for_each(|o| {
@@ -44,7 +44,7 @@ impl Container {
         let (visits_should_be_counted, turn_index_should_be_counted, counting_at_start_only) =
             Container::split_count_flags(count_flags);
 
-        let c = Rc::new(Container {
+        let c = Arc::new(Container {
             obj: Object::new(),
             content,
             named_content,
@@ -131,11 +131,11 @@ impl Container {
             sb.push('\n');
         }
 
-        let mut only_named: HashMap<String, Rc<Container>> = HashMap::new();
+        let mut only_named: HashMap<String, Arc<Container>> = HashMap::new();
 
         for (k, v) in self.named_content.iter() {
-            let o: Rc<dyn RTObject> = v.clone();
-            if self.content.iter().any(|e| Rc::ptr_eq(e, &o)) {
+            let o: Arc<dyn RTObject + Sync + Send> = v.clone();
+            if self.content.iter().any(|e| Arc::ptr_eq(e, &o)) {
                 continue;
             } else {
                 only_named.insert(k.clone(), v.clone());
@@ -168,12 +168,12 @@ impl Container {
         }
     }
 
-    pub fn get_path(self: &Rc<Self>) -> Path {
+    pub fn get_path(self: &Arc<Self>) -> Path {
         Object::get_path(self.as_ref())
     }
 
     pub fn content_at_path(
-        self: &Rc<Self>,
+        self: &Arc<Self>,
         path: &Path,
         partial_path_start: usize,
         mut partial_path_length: i32,
@@ -185,7 +185,7 @@ impl Container {
         let mut approximate = false;
 
         let mut current_container = Some(self.clone());
-        let mut current_obj: Rc<dyn RTObject> = self.clone();
+        let mut current_obj: Arc<dyn RTObject + Sync + Send> = self.clone();
 
         for i in partial_path_start..partial_path_length as usize {
             let comp = path.get_component(i);
@@ -259,7 +259,7 @@ impl Container {
         )
     }
 
-    fn content_with_path_component(&self, component: &Component) -> Option<Rc<dyn RTObject>> {
+    fn content_with_path_component(&self, component: &Component) -> Option<Arc<dyn RTObject + Sync + Send>> {
         if component.is_index() {
             if let Some(index) = component.index {
                 if index < self.content.len() {
@@ -270,7 +270,7 @@ impl Container {
             // When path is out of range, quietly return None
             // (useful as we step/increment forwards through content)
             return match self.get_object().get_parent() {
-                Some(o) => Some(o as Rc<dyn RTObject>),
+                Some(o) => Some(o as Arc<dyn RTObject + Sync + Send>),
                 None => None,
             };
         } else if let Some(found_content) = self.named_content.get(component.name.as_ref().unwrap())
@@ -281,7 +281,7 @@ impl Container {
         None
     }
 
-    pub fn get_named_only_content(&self) -> HashMap<String, Rc<Container>> {
+    pub fn get_named_only_content(&self) -> HashMap<String, Arc<Container>> {
         let mut named_only_content_dict = HashMap::new();
 
         for (key, value) in self.named_content.iter() {

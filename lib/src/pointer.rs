@@ -1,4 +1,4 @@
-use std::{fmt, rc::Rc};
+use std::{fmt, sync::Arc};
 
 use crate::{
     container::Container,
@@ -10,16 +10,16 @@ pub const NULL: Pointer = Pointer::new(None, -1);
 
 #[derive(Clone, Default)]
 pub struct Pointer {
-    pub container: Option<Rc<Container>>,
+    pub container: Option<Arc<Container>>,
     pub index: i32,
 }
 
 impl Pointer {
-    pub const fn new(container: Option<Rc<Container>>, index: i32) -> Pointer {
+    pub const fn new(container: Option<Arc<Container>>, index: i32) -> Pointer {
         Pointer { container, index }
     }
 
-    pub fn resolve(&self) -> Option<Rc<dyn RTObject>> {
+    pub fn resolve(&self) -> Option<Arc<dyn RTObject + Sync + Send>> {
         match &self.container {
             Some(container) => {
                 if self.index < 0 || container.content.is_empty() {
@@ -55,7 +55,7 @@ impl Pointer {
         Some(container.get_path())
     }
 
-    pub fn start_of(container: Rc<Container>) -> Pointer {
+    pub fn start_of(container: Arc<Container>) -> Pointer {
         Pointer {
             container: Some(container),
             index: 0,
