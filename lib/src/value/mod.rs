@@ -125,9 +125,9 @@ impl Value {
                 }
                 CAST_STRING => {
                     if *v {
-                        Ok(Some("true".into()))
+                        Ok(Some(<&str>::into("true")))
                     } else {
-                        Ok(Some("false".into()))
+                        Ok(Some(<&str>::into("false")))
                     }
                 }
                 _ => Err(StoryError::InvalidStoryState(
@@ -176,7 +176,7 @@ impl Value {
                 CAST_INT => {
                     let max = l.get_max_item();
                     match max {
-                        Some(i) => Ok(Some(i.1.into())),
+                        Some(i) => Ok(Some(i32::into(i.1))),
                         None => Ok(Some(0.into())),
                     }
                 }

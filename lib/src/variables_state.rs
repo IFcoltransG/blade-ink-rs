@@ -191,7 +191,7 @@ impl VariablesState {
             )));
         }
 
-        let val = value_type.into();
+        let val = Value::from(value_type);
 
         let notify = self.set_global(variable_name, Rc::new(val));
 
