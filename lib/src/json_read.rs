@@ -21,14 +21,14 @@ pub fn jtoken_to_runtime_object(
             "Failed to convert token to runtime RTObject: {}",
             token
         ))),
-        serde_json::Value::Bool(value) => Ok(Rc::new(Value::new_bool(value.to_owned()))),
+        serde_json::Value::Bool(value) => Ok(Rc::new(Value::from(value.to_owned()))),
         serde_json::Value::Number(_) => {
             if token.is_i64() {
                 let val: i32 = token.as_i64().unwrap().try_into().unwrap();
-                Ok(Rc::new(Value::new_int(val)))
+                Ok(Rc::new(Value::from(val)))
             } else {
                 let val: f32 = token.as_f64().unwrap() as f32;
-                Ok(Rc::new(Value::new_float(val)))
+                Ok(Rc::new(Value::from(val)))
             }
         }
 
@@ -38,9 +38,9 @@ pub fn jtoken_to_runtime_object(
             // String value
             let first_char = str.chars().next().unwrap();
             if first_char == '^' {
-                return Ok(Rc::new(Value::new_string(&str[1..])));
+                return Ok(Rc::new(Value::from(&str[1..])));
             } else if first_char == '\n' && str.len() == 1 {
-                return Ok(Rc::new(Value::new_string("\n")));
+                return Ok(Rc::new(Value::from("\n")));
             }
 
             // Glue
@@ -80,9 +80,9 @@ pub fn jtoken_to_runtime_object(
             let prop_value = obj.get("^->");
 
             if let Some(prop_value) = prop_value {
-                return Ok(Rc::new(Value::new_divert_target(
-                    Path::new_with_components_string(prop_value.as_str()),
-                )));
+                return Ok(Rc::new(Value::from(Path::new_with_components_string(
+                    prop_value.as_str(),
+                ))));
             }
 
             // // VariablePointerValue
@@ -263,7 +263,7 @@ pub fn jtoken_to_runtime_object(
                     raw_list.items.insert(item, v.as_i64().unwrap() as i32);
                 }
 
-                return Ok(Rc::new(Value::new_list(raw_list)));
+                return Ok(Rc::new(Value::from(raw_list)));
             }
 
             // Used when serialising save state only

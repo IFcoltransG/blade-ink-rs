@@ -206,7 +206,8 @@ impl fmt::Display for Divert {
                 }
             }
 
-            // TODO result.push_str(&format!(" -> {} ({})", self.get_target_path_string().unwrap_or_default(), target_str));
+            // TODO result.push_str(&format!(" -> {} ({})",
+            // self.get_target_path_string().unwrap_or_default(), target_str));
             let target_path = match self.target_path.borrow().as_ref() {
                 Some(t) => t.to_string(),
                 None => "".to_owned(),

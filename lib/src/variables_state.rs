@@ -106,7 +106,7 @@ impl VariablesState {
         let mut value = value;
         // Constructing new variable pointer reference
         if var_ass.is_new_declaration {
-            if let Some(var_pointer) = Value::get_variable_pointer_value(value.as_ref()) {
+            if let Some(var_pointer) = Value::get_value::<&VariablePointerValue>(value.as_ref()) {
                 value = self.resolve_variable_pointer(var_pointer);
             }
         } else {
@@ -118,7 +118,7 @@ impl VariablesState {
 
                 match existing_pointer {
                     Some(existing_pointer) => {
-                        match Value::get_variable_pointer_value(existing_pointer.as_ref()) {
+                        match Value::get_value::<&VariablePointerValue>(existing_pointer.as_ref()) {
                             Some(pv) => {
                                 name = pv.variable_name.to_string();
                                 context_index = pv.context_index;
@@ -169,7 +169,9 @@ impl VariablesState {
         // create
         // a chain of indirection by just returning the final target.
         if let Some(value_of_variable_pointed_to) = value_of_variable_pointed_to {
-            if Value::get_variable_pointer_value(value_of_variable_pointed_to.as_ref()).is_some() {
+            if Value::get_value::<&VariablePointerValue>(value_of_variable_pointed_to.as_ref())
+                .is_some()
+            {
                 return value_of_variable_pointed_to;
             }
         }
@@ -189,7 +191,7 @@ impl VariablesState {
             )));
         }
 
-        let val = Value::from_value_type(value_type);
+        let val = value_type.into();
 
         let notify = self.set_global(variable_name, Rc::new(val));
 
@@ -311,7 +313,7 @@ impl VariablesState {
         let var_value = self.get_raw_variable_with_name(name, context_index);
         // Get value from pointer?
         if let Some(vv) = var_value.clone() {
-            if let Some(var_pointer) = Value::get_variable_pointer_value(vv.as_ref()) {
+            if let Some(var_pointer) = Value::get_value::<&VariablePointerValue>(vv.as_ref()) {
                 return self.value_at_variable_pointer(var_pointer);
             }
         }

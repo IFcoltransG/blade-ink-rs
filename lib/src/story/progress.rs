@@ -8,6 +8,7 @@ use crate::{
     ink_list_item::InkListItem,
     native_function_call::NativeFunctionCall,
     object::RTObject,
+    path::Path,
     pointer::{self, Pointer},
     push_pop::PushPopType,
     story::{OutputStateChange, Story},
@@ -16,7 +17,7 @@ use crate::{
     story_state::StoryState,
     tag::Tag,
     value::Value,
-    value_type::ValueType,
+    value_type::{StringValue, ValueType, VariablePointerValue},
     variable_assigment::VariableAssignment,
     variable_reference::VariableReference,
     void::Void,
@@ -443,8 +444,9 @@ impl Story {
             // to our current (possibly temporary) context index. And make a
             // copy of the pointer
             // so that we're not editing the original runtime Object.
-            let var_pointer =
-                Value::get_variable_pointer_value(current_content_obj.as_ref().unwrap().as_ref());
+            let var_pointer = Value::get_value::<&VariablePointerValue>(
+                current_content_obj.as_ref().unwrap().as_ref(),
+            );
 
             if let Some(var_pointer) = var_pointer {
                 if var_pointer.context_index == -1 {
@@ -522,7 +524,7 @@ impl Story {
                     .variables_state
                     .get_variable_with_name(var_name.as_ref().unwrap(), -1)
                 {
-                    if let Some(target) = Value::get_divert_target_value(var_contents.as_ref()) {
+                    if let Some(target) = Value::get_value::<&Path>(var_contents.as_ref()) {
                         let p = Self::pointer_at_path(&self.main_content_container, target)?;
                         self.get_state_mut().set_diverted_pointer(p);
                     } else {
@@ -604,8 +606,7 @@ impl Story {
                             // the
                             // only problem is when exporting text for viewing, it
                             // skips over numbers etc.
-                            let text: Rc<dyn RTObject> =
-                                Rc::new(Value::new_string(&output.to_string()));
+                            let text: Rc<dyn RTObject> = Rc::new(Value::from(output.to_string()));
 
                             self.get_state_mut().push_to_output_stream(text);
                         }
@@ -639,7 +640,7 @@ impl Story {
                     if pop_type == PushPopType::Tunnel {
                         let popped = self.get_state_mut().pop_evaluation_stack();
 
-                        if let Some(v) = Value::get_divert_target_value(popped.as_ref()) {
+                        if let Some(v) = Value::get_value::<&Path>(popped.as_ref()) {
                             override_tunnel_return_target = Some(v.clone());
                         }
 
@@ -746,7 +747,7 @@ impl Story {
                             content_to_retain.push_back(obj.clone());
                         }
 
-                        if Value::get_string_value(obj.as_ref()).is_some() {
+                        if Value::get_value::<&StringValue>(obj.as_ref()).is_some() {
                             content_stack_for_string.push_back(obj.clone());
                         }
                     }
@@ -774,24 +775,24 @@ impl Story {
                     // Return to expression evaluation (from content mode)
                     self.get_state().set_in_expression_evaluation(true);
                     self.get_state_mut()
-                        .push_evaluation_stack(Rc::new(Value::new_string(&sb)));
+                        .push_evaluation_stack(Rc::new(Value::from(sb)));
                 }
                 CommandType::NoOp => {}
                 CommandType::ChoiceCount => {
                     let choice_count = self.get_state().get_generated_choices().len();
                     self.get_state_mut()
-                        .push_evaluation_stack(Rc::new(Value::new_int(choice_count as i32)));
+                        .push_evaluation_stack(Rc::new(Value::from(choice_count as i32)));
                 }
                 CommandType::Turns => {
                     let current_turn = self.get_state().current_turn_index;
                     self.get_state_mut()
-                        .push_evaluation_stack(Rc::new(Value::new_int(current_turn + 1)));
+                        .push_evaluation_stack(Rc::new(Value::from(current_turn + 1)));
                 }
                 CommandType::TurnsSince | CommandType::ReadCount => {
                     let target = self.get_state_mut().pop_evaluation_stack();
-                    if Value::get_divert_target_value(target.as_ref()).is_none() {
+                    if Value::get_value::<&Path>(target.as_ref()).is_none() {
                         let mut extra_note = "".to_owned();
-                        if Value::get_int_value(target.as_ref()).is_some() {
+                        if Value::get_value::<i32>(target.as_ref()).is_some() {
                             extra_note = format!(". Did you accidentally pass a read count ('knot_name') instead of a target {}",
                                     "('-> knot_name')?").to_owned();
                         }
@@ -800,7 +801,7 @@ impl Story {
                                 , extra_note)));
                     }
 
-                    let target = Value::get_divert_target_value(target.as_ref()).unwrap();
+                    let target = Value::get_value::<&Path>(target.as_ref()).unwrap();
 
                     let otmp = self.content_at_path(target).correct_obj();
                     let container = match &otmp {
@@ -840,20 +841,20 @@ impl Story {
                     }
 
                     self.get_state_mut()
-                        .push_evaluation_stack(Rc::new(Value::new_int(either_count)));
+                        .push_evaluation_stack(Rc::new(Value::from(either_count)));
                 }
                 CommandType::Random => {
                     let mut max_int = None;
                     let o = self.get_state_mut().pop_evaluation_stack();
 
-                    if let Some(v) = Value::get_int_value(o.as_ref()) {
+                    if let Some(v) = Value::get_value::<i32>(o.as_ref()) {
                         max_int = Some(v);
                     }
 
                     let o = self.get_state_mut().pop_evaluation_stack();
 
                     let mut min_int = None;
-                    if let Some(v) = Value::get_int_value(o.as_ref()) {
+                    if let Some(v) = Value::get_value::<i32>(o.as_ref()) {
                         min_int = Some(v);
                     }
 
@@ -892,7 +893,7 @@ impl Story {
                     let chosen_value = (next_random % random_range as u32) as i32 + min_value;
 
                     self.get_state_mut()
-                        .push_evaluation_stack(Rc::new(Value::new_int(chosen_value)));
+                        .push_evaluation_stack(Rc::new(Value::from(chosen_value)));
 
                     self.get_state_mut().previous_random = self.get_state().previous_random + 1;
                 }
@@ -901,7 +902,7 @@ impl Story {
 
                     let o = self.get_state_mut().pop_evaluation_stack();
 
-                    if let Some(v) = Value::get_int_value(o.as_ref()) {
+                    if let Some(v) = Value::get_value::<i32>(o.as_ref()) {
                         seed = Some(v);
                     }
 
@@ -924,11 +925,11 @@ impl Story {
                     let count = self.get_state_mut().visit_count_for_container(&cpc) - 1; // index
                                                                                           // not count
                     self.get_state_mut()
-                        .push_evaluation_stack(Rc::new(Value::new_int(count)));
+                        .push_evaluation_stack(Rc::new(Value::from(count)));
                 }
                 CommandType::SequenceShuffleIndex => {
                     let shuffle_index = self.next_sequence_shuffle_index()?;
-                    let v = Rc::new(Value::new_int(shuffle_index));
+                    let v = Rc::new(Value::from(shuffle_index));
                     self.get_state_mut().push_evaluation_stack(v);
                 }
                 CommandType::StartThread => {
@@ -960,13 +961,13 @@ impl Story {
 
                     let o = self.get_state_mut().pop_evaluation_stack();
 
-                    if let Some(v) = Value::get_int_value(o.as_ref()) {
+                    if let Some(v) = Value::get_value::<i32>(o.as_ref()) {
                         int_val = Some(v);
                     }
 
                     let o = self.get_state_mut().pop_evaluation_stack();
 
-                    if let Some(s) = Value::get_string_value(o.as_ref()) {
+                    if let Some(s) = Value::get_value::<&StringValue>(o.as_ref()) {
                         list_name_val = Some(&s.string);
                     }
 
@@ -988,7 +989,7 @@ impl Story {
                                 found_item.clone(),
                                 int_val.unwrap(),
                             ));
-                            generated_list_value = Some(Value::new_list(l));
+                            generated_list_value = Some(Value::from(l));
                         }
                     } else {
                         return Err(StoryError::InvalidStoryState(format!(
@@ -998,7 +999,7 @@ impl Story {
                     }
 
                     if generated_list_value.is_none() {
-                        generated_list_value = Some(Value::new_list(InkList::new()));
+                        generated_list_value = Some(Value::from(InkList::new()));
                     }
 
                     self.get_state_mut()
@@ -1012,7 +1013,7 @@ impl Story {
                     let min = p.into_any().downcast::<Value>();
 
                     p = self.get_state_mut().pop_evaluation_stack();
-                    let target_list = Value::get_list_value(p.as_ref());
+                    let target_list = Value::get_value::<&InkList>(p.as_ref());
 
                     if target_list.is_none() || min.is_err() || max.is_err() {
                         return Err(StoryError::InvalidStoryState(
@@ -1025,11 +1026,11 @@ impl Story {
                         .list_with_sub_range(&min.unwrap().value, &max.unwrap().value);
 
                     self.get_state_mut()
-                        .push_evaluation_stack(Rc::new(Value::new_list(result)));
+                        .push_evaluation_stack(Rc::new(Value::from(result)));
                 }
                 CommandType::ListRandom => {
                     let o = self.get_state_mut().pop_evaluation_stack();
-                    let list = Value::get_list_value(o.as_ref());
+                    let list = Value::get_value::<&InkList>(o.as_ref());
 
                     if list.is_none() {
                         return Err(StoryError::InvalidStoryState(
@@ -1073,7 +1074,7 @@ impl Story {
                     };
 
                     self.get_state_mut()
-                        .push_evaluation_stack(Rc::new(Value::new_list(new_list)));
+                        .push_evaluation_stack(Rc::new(Value::from(new_list)));
                 }
                 CommandType::BeginTag => self
                     .get_state_mut()
@@ -1124,7 +1125,7 @@ impl Story {
                                 }
                             }
 
-                            if let Some(sv) = Value::get_string_value(obj.as_ref()) {
+                            if let Some(sv) = Value::get_value::<&StringValue>(obj.as_ref()) {
                                 content_stack_for_tag.push(sv.string.clone());
                             }
                         }
@@ -1191,7 +1192,7 @@ impl Story {
                 let count = self
                     .get_state_mut()
                     .visit_count_for_container(container.as_ref().unwrap());
-                found_value = Rc::new(Value::new_int(count));
+                found_value = Rc::new(Value::from(count));
             }
             // Normal variable reference
             else {
@@ -1204,7 +1205,7 @@ impl Story {
                     None => {
                         self.add_error(&format!("Variable not found: '{}'. Using default value of 0 (false). This can happen with temporary variables if the declaration hasn't yet been hit. Globals are always given a default value on load if a value doesn't exist in the save state.", var_ref.name), true);
 
-                        found_value = Rc::new(Value::new_int(0));
+                        found_value = Rc::new(Value::from(0));
                     }
                 }
             }

@@ -3,10 +3,11 @@ use std::fmt;
 use crate::{
     ink_list::InkList,
     object::{Object, RTObject},
-    path::Path,
     story_error::StoryError,
-    value_type::{StringValue, ValueType, VariablePointerValue},
+    value_type::{ValueType, VariablePointerValue},
 };
+
+mod value_conversions;
 
 const CAST_BOOL: u8 = 0;
 const CAST_INT: u8 = 1;
@@ -49,41 +50,6 @@ impl Value {
         }
     }
 
-    pub fn new_bool(v: bool) -> Self {
-        Self {
-            obj: Object::new(),
-            value: ValueType::Bool(v),
-        }
-    }
-
-    pub fn new_int(v: i32) -> Self {
-        Self {
-            obj: Object::new(),
-            value: ValueType::Int(v),
-        }
-    }
-
-    pub fn new_float(v: f32) -> Self {
-        Self {
-            obj: Object::new(),
-            value: ValueType::Float(v),
-        }
-    }
-
-    pub fn new_string(v: &str) -> Self {
-        Self {
-            obj: Object::new(),
-            value: ValueType::new_string(v),
-        }
-    }
-
-    pub fn new_divert_target(p: Path) -> Self {
-        Self {
-            obj: Object::new(),
-            value: ValueType::DivertTarget(p),
-        }
-    }
-
     pub fn new_variable_pointer(variable_name: &str, context_index: i32) -> Self {
         Self {
             obj: Object::new(),
@@ -91,20 +57,6 @@ impl Value {
                 variable_name: variable_name.to_string(),
                 context_index,
             }),
-        }
-    }
-
-    pub fn new_list(l: InkList) -> Self {
-        Self {
-            obj: Object::new(),
-            value: ValueType::List(l),
-        }
-    }
-
-    pub fn from_value_type(value_type: ValueType) -> Self {
-        Self {
-            obj: Object::new(),
-            value: value_type,
         }
     }
 
@@ -124,99 +76,16 @@ impl Value {
         }
     }
 
-    pub fn get_string_value(o: &dyn RTObject) -> Option<&StringValue> {
-        match o.as_any().downcast_ref::<Value>() {
-            Some(v) => match &v.value {
-                ValueType::String(v) => Some(v),
-                _ => None,
-            },
-            None => None,
-        }
-    }
-
-    pub fn get_variable_pointer_value(o: &dyn RTObject) -> Option<&VariablePointerValue> {
-        match o.as_any().downcast_ref::<Value>() {
-            Some(v) => match &v.value {
-                ValueType::VariablePointer(v) => Some(v),
-                _ => None,
-            },
-            None => None,
-        }
-    }
-
-    pub fn get_divert_target_value(o: &dyn RTObject) -> Option<&Path> {
-        match o.as_any().downcast_ref::<Value>() {
-            Some(v) => match &v.value {
-                ValueType::DivertTarget(p) => Some(p),
-                _ => None,
-            },
-            None => None,
-        }
-    }
-
-    pub(crate) fn get_bool_value(o: &dyn RTObject) -> Option<bool> {
-        match o.as_any().downcast_ref::<Value>() {
-            Some(v) => match &v.value {
-                ValueType::Bool(v) => Some(*v),
-                _ => None,
-            },
-            None => None,
-        }
-    }
-
-    pub fn get_int_value(o: &dyn RTObject) -> Option<i32> {
-        match o.as_any().downcast_ref::<Value>() {
-            Some(v) => match &v.value {
-                ValueType::Int(v) => Some(*v),
-                _ => None,
-            },
-            None => None,
-        }
-    }
-
-    pub fn get_float_value(o: &dyn RTObject) -> Option<f32> {
-        match o.as_any().downcast_ref::<Value>() {
-            Some(v) => match &v.value {
-                ValueType::Float(v) => Some(*v),
-                _ => None,
-            },
-            None => None,
-        }
-    }
-
-    pub fn get_list_value_mut(o: &mut dyn RTObject) -> Option<&mut InkList> {
-        match o.as_any_mut().downcast_mut::<Value>() {
-            Some(v) => match &mut v.value {
-                ValueType::List(v) => Some(v),
-                _ => None,
-            },
-            None => None,
-        }
-    }
-
-    pub fn get_list_value(o: &dyn RTObject) -> Option<&InkList> {
-        match o.as_any().downcast_ref::<Value>() {
-            Some(v) => match &v.value {
-                ValueType::List(v) => Some(v),
-                _ => None,
-            },
-            None => None,
-        }
-    }
-
-    pub fn get_divert_value(o: &dyn RTObject) -> Option<&Path> {
-        match o.as_any().downcast_ref::<Value>() {
-            Some(v) => match &v.value {
-                ValueType::DivertTarget(v) => Some(v),
-                _ => None,
-            },
-            None => None,
-        }
+    pub fn get_value<'val, T>(o: &'val dyn RTObject) -> Option<T>
+    where
+        &'val Value: TryInto<T>,
+    {
+        o.as_any().downcast_ref::<Value>()?.try_into().ok()
     }
 
     pub fn retain_list_origins_for_assignment(old_value: &dyn RTObject, new_value: &dyn RTObject) {
-        if let Some(old_list) = Self::get_list_value(old_value) {
-            if let Some(new_list) = Self::get_list_value(new_value) {
+        if let Some(old_list) = Self::get_value::<&InkList>(old_value) {
+            if let Some(new_list) = Self::get_value::<&InkList>(new_value) {
                 if new_list.items.is_empty() {
                     new_list.set_initial_origin_names(old_list.get_origin_names());
                 }
@@ -242,23 +111,23 @@ impl Value {
                 CAST_BOOL => Ok(None),
                 CAST_INT => {
                     if *v {
-                        Ok(Some(Self::new_int(1)))
+                        Ok(Some(1.into()))
                     } else {
-                        Ok(Some(Self::new_int(0)))
+                        Ok(Some(0.into()))
                     }
                 }
                 CAST_FLOAT => {
                     if *v {
-                        Ok(Some(Self::new_float(1.0)))
+                        Ok(Some(1.0.into()))
                     } else {
-                        Ok(Some(Self::new_float(0.0)))
+                        Ok(Some(0.0.into()))
                     }
                 }
                 CAST_STRING => {
                     if *v {
-                        Ok(Some(Self::new_string("true")))
+                        Ok(Some("true".into()))
                     } else {
-                        Ok(Some(Self::new_string("false")))
+                        Ok(Some("false".into()))
                     }
                 }
                 _ => Err(StoryError::InvalidStoryState(
@@ -268,14 +137,14 @@ impl Value {
             ValueType::Int(v) => match cast_dest_type {
                 CAST_BOOL => {
                     if *v == 0 {
-                        Ok(Some(Self::new_bool(false)))
+                        Ok(Some(false.into()))
                     } else {
-                        Ok(Some(Self::new_bool(true)))
+                        Ok(Some(true.into()))
                     }
                 }
                 CAST_INT => Ok(None),
-                CAST_FLOAT => Ok(Some(Self::new_float(*v as f32))),
-                CAST_STRING => Ok(Some(Self::new_string(&v.to_string()))),
+                CAST_FLOAT => Ok(Some((*v as f32).into())),
+                CAST_STRING => Ok(Some(v.to_string().into())),
                 _ => Err(StoryError::InvalidStoryState(
                     "Cast not allowed for int".to_owned(),
                 )),
@@ -283,21 +152,21 @@ impl Value {
             ValueType::Float(v) => match cast_dest_type {
                 CAST_BOOL => {
                     if *v == 0.0 {
-                        Ok(Some(Self::new_bool(false)))
+                        Ok(Some(false.into()))
                     } else {
-                        Ok(Some(Self::new_bool(true)))
+                        Ok(Some(true.into()))
                     }
                 }
-                CAST_INT => Ok(Some(Self::new_int(*v as i32))),
+                CAST_INT => Ok(Some((*v as i32).into())),
                 CAST_FLOAT => Ok(None),
-                CAST_STRING => Ok(Some(Self::new_string(&v.to_string()))),
+                CAST_STRING => Ok(Some(v.to_string().into())),
                 _ => Err(StoryError::InvalidStoryState(
                     "Cast not allowed for float".to_owned(),
                 )),
             },
             ValueType::String(v) => match cast_dest_type {
-                CAST_INT => Ok(Some(Self::new_int(v.string.parse::<i32>().unwrap()))),
-                CAST_FLOAT => Ok(Some(Self::new_float(v.string.parse::<f32>().unwrap()))),
+                CAST_INT => Ok(Some(v.string.parse::<i32>().unwrap().into())),
+                CAST_FLOAT => Ok(Some(v.string.parse::<f32>().unwrap().into())),
                 CAST_STRING => Ok(None),
                 _ => Err(StoryError::InvalidStoryState(
                     "Cast not allowed for string".to_owned(),
@@ -307,23 +176,23 @@ impl Value {
                 CAST_INT => {
                     let max = l.get_max_item();
                     match max {
-                        Some(i) => Ok(Some(Self::new_int(i.1))),
-                        None => Ok(Some(Self::new_int(0))),
+                        Some(i) => Ok(Some(i.1.into())),
+                        None => Ok(Some(0.into())),
                     }
                 }
                 CAST_FLOAT => {
                     let max = l.get_max_item();
                     match max {
-                        Some(i) => Ok(Some(Self::new_float(i.1 as f32))),
-                        None => Ok(Some(Self::new_float(0.0))),
+                        Some(i) => Ok(Some((i.1 as f32).into())),
+                        None => Ok(Some(0.0.into())),
                     }
                 }
                 CAST_LIST => Ok(None),
                 CAST_STRING => {
                     let max = l.get_max_item();
                     match max {
-                        Some(i) => Ok(Some(Self::new_string(&i.0.to_string()))),
-                        None => Ok(Some(Self::new_string(""))),
+                        Some(i) => Ok(Some((i.0.to_string()).into())),
+                        None => Ok(Some("".into())),
                     }
                 }
                 _ => Err(StoryError::InvalidStoryState(

@@ -16,7 +16,7 @@ use crate::{
 pub struct Object {
     parent: RefCell<Weak<Container>>,
     path: RefCell<Option<Path>>,
-    //debug_metadata: DebugMetadata,
+    // debug_metadata: DebugMetadata,
 }
 
 impl Object {

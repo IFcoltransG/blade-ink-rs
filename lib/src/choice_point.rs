@@ -100,7 +100,8 @@ impl RTObject for ChoicePoint {
 
 impl fmt::Display for ChoicePoint {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        // let target_line_num = self.get_debug_line_number_of_path(self.get_path_on_choice()?)?;
+        // let target_line_num =
+        // self.get_debug_line_number_of_path(self.get_path_on_choice()?)?;
 
         // let mut target_string = self.get_path_on_choice()?.to_string();
 
