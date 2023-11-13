@@ -303,7 +303,7 @@ impl NativeFunctionCall {
                 }
             };
 
-            let origins = list_val.origins.lock().unwrap();
+            let origins = list_val.origins.read().unwrap();
 
             let item_origin = origins.iter().find(|origin| {
                 origin.get_name() == list_item.get_origin_name().unwrap_or(&"".to_owned())

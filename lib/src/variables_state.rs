@@ -1,6 +1,6 @@
 use std::{
     collections::{HashMap, HashSet},
-    sync::{Arc, Mutex},
+    sync::{Arc, RwLock},
 };
 
 use serde_json::Map;
@@ -21,7 +21,7 @@ pub(crate) struct VariablesState {
     pub global_variables: HashMap<String, Arc<Value>>,
     pub default_global_variables: HashMap<String, Arc<Value>>,
     pub batch_observing_variable_changes: bool,
-    pub callstack: Arc<Mutex<CallStack>>,
+    pub callstack: Arc<RwLock<CallStack>>,
     pub changed_variables_for_batch_obs: Option<HashSet<String>>,
     pub patch: Option<StatePatch>,
     list_defs_origin: Arc<ListDefinitionsOrigin>,
@@ -29,7 +29,7 @@ pub(crate) struct VariablesState {
 
 impl VariablesState {
     pub fn new(
-        callstack: Arc<Mutex<CallStack>>,
+        callstack: Arc<RwLock<CallStack>>,
         list_defs_origin: Arc<ListDefinitionsOrigin>,
     ) -> VariablesState {
         VariablesState {
@@ -134,7 +134,7 @@ impl VariablesState {
         if set_global {
             self.set_global(&name, value);
         } else {
-            self.callstack.lock().unwrap().set_temporary_variable(
+            self.callstack.write().unwrap().set_temporary_variable(
                 name,
                 value,
                 var_ass.is_new_declaration,
@@ -225,7 +225,7 @@ impl VariablesState {
             return 0;
         }
 
-        return self.callstack.lock().unwrap().get_current_element_index();
+        return self.callstack.read().unwrap().get_current_element_index();
     }
 
     fn get_raw_variable_with_name(&self, name: &str, context_index: i32) -> Option<Arc<Value>> {
@@ -262,7 +262,7 @@ impl VariablesState {
         // Temporary
         let var_value = self
             .callstack
-            .lock()
+            .read()
             .unwrap()
             .get_temporary_variable_with_name(name, context_index);
 
@@ -323,7 +323,7 @@ impl VariablesState {
         self.get_variable_with_name(&pointer.variable_name, pointer.context_index)
     }
 
-    pub fn set_callstack(&mut self, callstack: Arc<Mutex<CallStack>>) {
+    pub fn set_callstack(&mut self, callstack: Arc<RwLock<CallStack>>) {
         self.callstack = callstack;
     }
 

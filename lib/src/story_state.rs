@@ -1,6 +1,6 @@
 use std::{
     collections::HashMap,
-    sync::{Arc, Mutex},
+    sync::{Arc, RwLock},
 };
 
 use crate::{
@@ -108,14 +108,14 @@ impl StoryState {
 
     pub fn get_current_pointer(&self) -> Pointer {
         self.get_callstack()
-            .lock()
+            .read()
             .unwrap()
             .get_current_element()
             .current_pointer
             .clone()
     }
 
-    pub fn get_callstack(&self) -> &Arc<Mutex<CallStack>> {
+    pub fn get_callstack(&self) -> &Arc<RwLock<CallStack>> {
         &self.current_flow.callstack
     }
 
@@ -327,7 +327,7 @@ impl StoryState {
     pub fn set_current_pointer(&self, pointer: Pointer) {
         self.get_callstack()
             .as_ref()
-            .lock()
+            .write()
             .unwrap()
             .get_current_element_mut()
             .current_pointer = pointer;
@@ -335,7 +335,7 @@ impl StoryState {
 
     pub fn get_in_expression_evaluation(&self) -> bool {
         self.get_callstack()
-            .lock()
+            .write()
             .unwrap()
             .get_current_element()
             .in_expression_evaluation
@@ -343,7 +343,7 @@ impl StoryState {
 
     pub fn set_in_expression_evaluation(&self, value: bool) {
         self.get_callstack()
-            .lock()
+            .write()
             .unwrap()
             .get_current_element_mut()
             .in_expression_evaluation = value;
@@ -353,18 +353,18 @@ impl StoryState {
         if let Some(list) = Value::get_list_value(obj.as_ref()) {
             let origin_names = list.get_origin_names();
 
-            list.origins.lock().unwrap().clear();
+            list.origins.write().unwrap().clear();
 
             for name in &origin_names {
                 let def = self.list_definitions.get_list_definition(name).unwrap();
                 if !list
                     .origins
-                    .lock()
+                    .read()
                     .unwrap()
                     .iter()
                     .any(|e| std::ptr::eq(e, def))
                 {
-                    list.origins.lock().unwrap().push(def.clone());
+                    list.origins.write().unwrap().push(def.clone());
                 }
             }
         }
@@ -544,7 +544,7 @@ impl StoryState {
 
             {
                 // block to release cs borrow
-                let cs = self.get_callstack().lock().unwrap();
+                let cs = self.get_callstack().read().unwrap();
                 let curr_el = cs.get_current_element();
                 if curr_el.push_pop_type == PushPopType::Function {
                     function_trim_index = curr_el.function_start_in_output_stream;
@@ -586,7 +586,7 @@ impl StoryState {
                     }
 
                     if function_trim_index > -1 {
-                        let mut cs = self.get_callstack().as_ref().lock().unwrap();
+                        let mut cs = self.get_callstack().as_ref().write().unwrap();
                         let callstack_elements = cs.get_elements_mut();
                         for i in (0..callstack_elements.len()).rev() {
                             if let Some(el) = callstack_elements.get_mut(i) {
@@ -687,7 +687,7 @@ impl StoryState {
     pub fn set_previous_pointer(&self, p: Pointer) {
         self.get_callstack()
             .as_ref()
-            .lock()
+            .write()
             .unwrap()
             .get_current_thread_mut()
             .previous_pointer = p.clone();
@@ -696,7 +696,7 @@ impl StoryState {
     pub fn get_previous_pointer(&self) -> Pointer {
         self.get_callstack()
             .as_ref()
-            .lock()
+            .write()
             .unwrap()
             .get_current_thread_mut()
             .previous_pointer
@@ -706,7 +706,7 @@ impl StoryState {
     pub fn try_exit_function_evaluation_from_game(&mut self) -> bool {
         if self
             .get_callstack()
-            .lock()
+            .read()
             .unwrap()
             .get_current_element()
             .push_pop_type
@@ -724,7 +724,7 @@ impl StoryState {
         // Add the end of a function call, trim any whitespace from the end.
         if self
             .get_callstack()
-            .lock()
+            .read()
             .unwrap()
             .get_current_element()
             .push_pop_type
@@ -733,13 +733,13 @@ impl StoryState {
             self.trim_whitespace_from_function_end();
         }
 
-        self.get_callstack().lock().unwrap().pop(t)
+        self.get_callstack().write().unwrap().pop(t)
     }
 
     fn go_to_start(&self) {
         self.get_callstack()
             .as_ref()
-            .lock()
+            .write()
             .unwrap()
             .get_current_element_mut()
             .current_pointer = Pointer::start_of(self.main_content_container.clone())
@@ -768,8 +768,8 @@ impl StoryState {
         // If the patch is applied, then this new flow will replace the old one in
         // _namedFlows
         copy.current_flow.name = self.current_flow.name.clone();
-        copy.current_flow.callstack = Arc::new(Mutex::new(
-            self.current_flow.callstack.as_ref().lock().unwrap().clone(),
+        copy.current_flow.callstack = Arc::new(RwLock::new(
+            self.current_flow.callstack.as_ref().read().unwrap().clone(),
         ));
         copy.current_flow.current_choices = self.current_flow.current_choices.clone();
         copy.current_flow.output_stream = self.current_flow.output_stream.clone();
@@ -920,7 +920,7 @@ impl StoryState {
     }
 
     pub(crate) fn force_end(&mut self) {
-        self.get_callstack().lock().unwrap().reset();
+        self.get_callstack().write().unwrap().reset();
 
         self.current_flow.current_choices.clear();
 
@@ -937,7 +937,7 @@ impl StoryState {
     fn trim_whitespace_from_function_end(&mut self) {
         assert_eq!(
             self.get_callstack()
-                .lock()
+                .read()
                 .unwrap()
                 .get_current_element()
                 .push_pop_type,
@@ -946,7 +946,7 @@ impl StoryState {
 
         let function_start_point = match self
             .get_callstack()
-            .lock()
+            .read()
             .unwrap()
             .get_current_element()
             .function_start_in_output_stream
@@ -985,13 +985,13 @@ impl StoryState {
         func_container: Arc<Container>,
         arguments: Option<&Vec<ValueType>>,
     ) -> Result<(), StoryError> {
-        self.get_callstack().lock().unwrap().push(
+        self.get_callstack().write().unwrap().push(
             PushPopType::FunctionEvaluationFromGame,
             self.evaluation_stack.len(),
             0,
         );
         self.get_callstack()
-            .lock()
+            .write()
             .unwrap()
             .get_current_element_mut()
             .current_pointer = Pointer::start_of(func_container);
@@ -1032,7 +1032,7 @@ impl StoryState {
     ) -> Result<Option<ValueType>, StoryError> {
         if self
             .get_callstack()
-            .lock()
+            .read()
             .unwrap()
             .get_current_element()
             .push_pop_type
@@ -1040,13 +1040,13 @@ impl StoryState {
         {
             return Err(StoryError::InvalidStoryState(format!(
                 "Expected external function evaluation to be complete. Stack trace: {}",
-                self.get_callstack().lock().unwrap().get_callstack_trace()
+                self.get_callstack().read().unwrap().get_callstack_trace()
             )));
         }
 
         let original_evaluation_stack_height = self
             .get_callstack()
-            .lock()
+            .read()
             .unwrap()
             .get_current_element()
             .evaluation_stack_height_when_pushed;
@@ -1066,7 +1066,7 @@ impl StoryState {
 
         // Finally, pop the external function evaluation
         self.get_callstack()
-            .lock()
+            .write()
             .unwrap()
             .pop(Some(PushPopType::FunctionEvaluationFromGame))?;
 
@@ -1351,7 +1351,7 @@ impl StoryState {
         else {
             self.named_flows = None;
             self.current_flow.name = "default".to_owned(); // Replace with the default flow name
-            self.current_flow.callstack.lock().unwrap().load_json(
+            self.current_flow.callstack.write().unwrap().load_json(
                 &self.main_content_container,
                 j_object
                     .get("callstackThreads")

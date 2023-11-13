@@ -6,7 +6,7 @@ use std::{
     fs, io,
     io::Write,
     path::Path,
-    sync::{Arc, Mutex},
+    sync::{Arc, RwLock},
 };
 
 use anyhow::Context;
@@ -43,8 +43,8 @@ struct EHandler {
 }
 
 impl EHandler {
-    pub fn new() -> Arc<Mutex<EHandler>> {
-        Arc::new(Mutex::new(EHandler {
+    pub fn new() -> Arc<RwLock<EHandler>> {
+        Arc::new(RwLock::new(EHandler {
             should_terminate: false,
         }))
     }
@@ -73,7 +73,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut end = false;
 
-    while !end && !err_handler.lock().unwrap().should_terminate {
+    while !end && !err_handler.read().unwrap().should_terminate {
         while story.can_continue() {
             let line = story.cont()?;
 

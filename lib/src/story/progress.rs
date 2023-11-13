@@ -146,7 +146,7 @@ impl Story {
 
             // Finished a section of content / reached a choice point?
             if !self.can_continue() {
-                if self.state.get_callstack().lock().unwrap().can_pop_thread() {
+                if self.state.get_callstack().read().unwrap().can_pop_thread() {
                     self.add_error("Thread available to pop, threads should always be flat by the end of evaluation?", false);
                 }
 
@@ -157,7 +157,7 @@ impl Story {
                     if self
                         .state
                         .get_callstack()
-                        .lock()
+                        .read()
                         .unwrap()
                         .can_pop_type(Some(PushPopType::Tunnel))
                     {
@@ -165,7 +165,7 @@ impl Story {
                     } else if self
                         .state
                         .get_callstack()
-                        .lock()
+                        .read()
                         .unwrap()
                         .can_pop_type(Some(PushPopType::Function))
                     {
@@ -173,7 +173,7 @@ impl Story {
                             "unexpectedly reached end of content. Do you need a '~ return'?",
                             false,
                         );
-                    } else if !self.get_state().get_callstack().lock().unwrap().can_pop() {
+                    } else if !self.get_state().get_callstack().read().unwrap().can_pop() {
                         self.add_error(
                             "ran out of content. Do you need a '-> DONE' or '-> END'?",
                             false,
@@ -210,13 +210,13 @@ impl Story {
                 Some(on_err) => {
                     if self.get_state().has_error() {
                         for err in self.get_state().get_current_errors() {
-                            on_err.lock().unwrap().error(err, ErrorType::Error);
+                            on_err.write().unwrap().error(err, ErrorType::Error);
                         }
                     }
 
                     if self.get_state().has_warning() {
                         for err in self.get_state().get_current_warnings() {
-                            on_err.lock().unwrap().error(err, ErrorType::Warning);
+                            on_err.write().unwrap().error(err, ErrorType::Warning);
                         }
                     }
 
@@ -285,7 +285,7 @@ impl Story {
             && !self
                 .get_state()
                 .get_callstack()
-                .lock()
+                .read()
                 .unwrap()
                 .element_is_evaluate_from_game()
         {
@@ -456,7 +456,7 @@ impl Story {
                     let context_idx = self
                         .get_state()
                         .get_callstack()
-                        .lock()
+                        .read()
                         .unwrap()
                         .context_for_variable_named(&var_pointer.variable_name);
                     current_content_obj = Some(Arc::new(Value::new_variable_pointer(
@@ -495,7 +495,7 @@ impl Story {
                 if control_cmd.command_type == CommandType::StartThread {
                     self.get_state()
                         .get_callstack()
-                        .lock()
+                        .write()
                         .unwrap()
                         .push_thread();
                 }
@@ -567,7 +567,7 @@ impl Story {
             }
 
             if current_divert.pushes_to_stack {
-                self.get_state().get_callstack().lock().unwrap().push(
+                self.get_state().get_callstack().write().unwrap().push(
                     current_divert.stack_push_type,
                     0,
                     self.get_state().get_output_stream().len() as i32,
@@ -668,12 +668,12 @@ impl Story {
                     } else if self
                         .get_state()
                         .get_callstack()
-                        .lock()
+                        .read()
                         .unwrap()
                         .get_current_element()
                         .push_pop_type
                         != pop_type
-                        || !self.get_state().get_callstack().lock().unwrap().can_pop()
+                        || !self.get_state().get_callstack().read().unwrap().can_pop()
                     {
                         let mut names: HashMap<PushPopType, String> = HashMap::new();
                         names.insert(
@@ -690,13 +690,13 @@ impl Story {
                                 &self
                                     .get_state()
                                     .get_callstack()
-                                    .lock()
+                                    .read()
                                     .unwrap()
                                     .get_current_element()
                                     .push_pop_type,
                             )
                             .cloned();
-                        if !self.get_state().get_callstack().lock().unwrap().can_pop() {
+                        if !self.get_state().get_callstack().read().unwrap().can_pop() {
                             expected = Some("end of flow (-> END or choice)".to_owned());
                         }
 
@@ -953,14 +953,14 @@ impl Story {
                     if self
                         .get_state()
                         .get_callstack()
-                        .lock()
+                        .read()
                         .unwrap()
                         .can_pop_thread()
                     {
                         self.get_state()
                             .get_callstack()
                             .as_ref()
-                            .lock()
+                            .write()
                             .unwrap()
                             .pop_thread()?;
                     }
@@ -1292,7 +1292,7 @@ impl Story {
                 .get_state()
                 .get_callstack()
                 .as_ref()
-                .lock()
+                .read()
                 .unwrap()
                 .can_pop_type(Some(PushPopType::Function));
             if can_pop_type {
@@ -1314,14 +1314,14 @@ impl Story {
                 .get_state()
                 .get_callstack()
                 .as_ref()
-                .lock()
+                .read()
                 .unwrap()
                 .can_pop_thread()
             {
                 self.get_state()
                     .get_callstack()
                     .as_ref()
-                    .lock()
+                    .write()
                     .unwrap()
                     .pop_thread()?;
 
@@ -1347,7 +1347,7 @@ impl Story {
             .get_state()
             .get_callstack()
             .as_ref()
-            .lock()
+            .read()
             .unwrap()
             .get_current_element()
             .current_pointer
@@ -1395,7 +1395,7 @@ impl Story {
         self.get_state()
             .get_callstack()
             .as_ref()
-            .lock()
+            .write()
             .unwrap()
             .get_current_element_mut()
             .current_pointer = pointer;
@@ -1472,7 +1472,7 @@ impl Story {
         if let Some(current_choices) = self.get_state().get_current_choices() {
             for c in current_choices {
                 if !c.is_invisible_default {
-                    *c.index.lock().unwrap() = choices.len();
+                    *c.index.write().unwrap() = choices.len();
                     choices.push(c.clone());
                 }
             }

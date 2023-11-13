@@ -2,7 +2,7 @@
 //! is processing.
 use std::{
     collections::HashSet,
-    sync::{Arc, Mutex},
+    sync::{Arc, RwLock},
 };
 
 use crate::{
@@ -13,23 +13,23 @@ use crate::{
 
 /// Defines the method that will be called when an observed global variable
 /// changes.
-pub trait VariableObserver: Send {
+pub trait VariableObserver: Send + Sync {
     fn changed(&mut self, variable_name: &str, value: &ValueType);
 }
 
 /// Defines the method callback implementing an external function.
-pub trait ExternalFunction: Send {
+pub trait ExternalFunction: Send + Sync {
     fn call(&mut self, func_name: &str, args: Vec<ValueType>) -> Option<ValueType>;
 }
 
 pub(crate) struct ExternalFunctionDef {
-    function: Arc<Mutex<dyn ExternalFunction>>,
+    function: Arc<RwLock<dyn ExternalFunction>>,
     lookahead_safe: bool,
 }
 
 /// Defines the method that will be called when an error occurs while executing
 /// the story.
-pub trait ErrorHandler: Send {
+pub trait ErrorHandler: Send + Sync {
     fn error(&mut self, message: &str, error_type: ErrorType);
 }
 
@@ -50,7 +50,7 @@ impl Story {
     /// the story.
     /// It's strongly recommended that you assign an error handler to your
     /// story instance, to avoid getting panics for ink errors.
-    pub fn set_error_handler(&mut self, err_handler: Arc<Mutex<dyn ErrorHandler>>) {
+    pub fn set_error_handler(&mut self, err_handler: Arc<RwLock<dyn ErrorHandler>>) {
         self.on_error = Some(err_handler);
     }
 
@@ -66,7 +66,7 @@ impl Story {
     pub fn observe_variable(
         &mut self,
         variable_name: &str,
-        observer: Arc<Mutex<dyn VariableObserver>>,
+        observer: Arc<RwLock<dyn VariableObserver>>,
     ) -> Result<(), StoryError> {
         self.if_async_we_cant("observe a new variable")?;
 
@@ -84,7 +84,7 @@ impl Story {
                 v.push(observer);
             }
             None => {
-                let v: Vec<Arc<Mutex<dyn VariableObserver>>> = vec![observer];
+                let v: Vec<Arc<RwLock<dyn VariableObserver>>> = vec![observer];
                 self.variable_observers.insert(variable_name.to_string(), v);
             }
         }
@@ -98,7 +98,7 @@ impl Story {
     /// will be removed from all variables that it's subscribed to.
     pub fn remove_variable_observer(
         &mut self,
-        observer: &Arc<Mutex<dyn VariableObserver>>,
+        observer: &Arc<RwLock<dyn VariableObserver>>,
         specific_variable_name: Option<&str>,
     ) -> Result<(), StoryError> {
         self.if_async_we_cant("remove a variable observer")?;
@@ -142,7 +142,7 @@ impl Story {
 
         if let Some(observers) = observers {
             for o in observers.iter() {
-                o.lock().unwrap().changed(variable_name, value);
+                o.write().unwrap().changed(variable_name, value);
             }
         }
     }
@@ -176,7 +176,7 @@ impl Story {
     pub fn bind_external_function(
         &mut self,
         func_name: &str,
-        function: Arc<Mutex<dyn ExternalFunction>>,
+        function: Arc<RwLock<dyn ExternalFunction>>,
         lookahead_safe: bool,
     ) -> Result<(), StoryError> {
         self.if_async_we_cant("bind an external function")?;
@@ -231,7 +231,7 @@ impl Story {
                 if let Some(fallback_function_container) = self.knot_container_with_name(func_name)
                 {
                     // Divert direct into fallback function and we're done
-                    self.get_state().get_callstack().lock().unwrap().push(
+                    self.get_state().get_callstack().write().unwrap().push(
                         PushPopType::Function,
                         0,
                         self.get_state().get_output_stream().len() as i32,
@@ -278,7 +278,7 @@ impl Story {
         let func_result = func_def
             .unwrap()
             .function
-            .lock()
+            .write()
             .unwrap()
             .call(func_name, arguments);
 

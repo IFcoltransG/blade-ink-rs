@@ -1,7 +1,7 @@
 use std::{
     any::Any,
     fmt::Display,
-    sync::{Arc, Mutex, Weak},
+    sync::{Arc, RwLock, Weak},
 };
 
 use as_any::{AsAny, Downcast};
@@ -13,33 +13,33 @@ use crate::{
 };
 
 pub struct Object {
-    parent: Mutex<Weak<Container>>,
-    path: Mutex<Option<Path>>,
+    parent: RwLock<Weak<Container>>,
+    path: RwLock<Option<Path>>,
     // debug_metadata: DebugMetadata,
 }
 
 impl Object {
     pub fn new() -> Object {
         Object {
-            parent: Mutex::new(Weak::new()),
-            path: Mutex::new(None),
+            parent: RwLock::new(Weak::new()),
+            path: RwLock::new(None),
         }
     }
 
     pub fn is_root(&self) -> bool {
-        self.parent.lock().unwrap().upgrade().is_none()
+        self.parent.read().unwrap().upgrade().is_none()
     }
 
     pub fn get_parent(&self) -> Option<Arc<Container>> {
-        self.parent.lock().unwrap().upgrade()
+        self.parent.read().unwrap().upgrade()
     }
 
     pub fn set_parent(&self, parent: &Arc<Container>) {
-        *self.parent.lock().unwrap() = Arc::downgrade(parent);
+        *self.parent.write().unwrap() = Arc::downgrade(parent);
     }
 
     pub fn get_path(rtobject: &dyn RTObject) -> Path {
-        if let Some(p) = rtobject.get_object().path.lock().unwrap().as_ref() {
+        if let Some(p) = rtobject.get_object().path.read().unwrap().as_ref() {
             return p.clone();
         }
 
@@ -82,18 +82,18 @@ impl Object {
                 // Reverse list because components are searched in reverse order.
                 comps.reverse();
 
-                *rtobject.get_object().path.lock().unwrap() =
+                *rtobject.get_object().path.write().unwrap() =
                     Some(Path::new(&comps, Path::default().is_relative()));
             }
             None => {
-                *rtobject.get_object().path.lock().unwrap() = Some(Path::new_with_defaults());
+                *rtobject.get_object().path.write().unwrap() = Some(Path::new_with_defaults());
             }
         }
 
         rtobject
             .get_object()
             .path
-            .lock()
+            .read()
             .unwrap()
             .as_ref()
             .unwrap()
@@ -123,7 +123,7 @@ impl Object {
         // 1. Find last shared ancestor
         // 2. Drill up using ".." style (actually represented as "^")
         // 3. Re-build downward chain from common ancestor
-        let own_path = rtobject.get_object().path.lock().unwrap();
+        let own_path = rtobject.get_object().path.read().unwrap();
         let min_path_length = std::cmp::min(global_path.len(), own_path.as_ref().unwrap().len());
         let mut last_shared_path_comp_index: i32 = -1;
 

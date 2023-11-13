@@ -1,5 +1,5 @@
 use core::fmt;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, RwLock};
 
 use crate::{
     container::Container,
@@ -14,7 +14,7 @@ pub struct ChoicePoint {
     is_invisible_default: bool,
     once_only: bool,
     has_condition: bool,
-    path_on_choice: Mutex<Path>,
+    path_on_choice: RwLock<Path>,
 }
 
 impl ChoicePoint {
@@ -26,14 +26,14 @@ impl ChoicePoint {
             is_invisible_default: (flags & 8) > 0,
             once_only: (flags & 16) > 0,
             has_condition: (flags & 1) > 0,
-            path_on_choice: Mutex::new(Path::new_with_components_string(Some(
+            path_on_choice: RwLock::new(Path::new_with_components_string(Some(
                 path_string_on_choice,
             ))),
         }
     }
 
     pub fn get_choice_target(self: &Arc<Self>) -> Option<Arc<Container>> {
-        Object::resolve_path(self.clone(), &self.path_on_choice.lock().unwrap()).container()
+        Object::resolve_path(self.clone(), &self.path_on_choice.read().unwrap()).container()
     }
 
     pub fn get_flags(&self) -> i32 {
@@ -78,13 +78,13 @@ impl ChoicePoint {
 
     pub fn get_path_on_choice(self: &Arc<Self>) -> Path {
         // Resolve any relative paths to global ones as we come across them
-        if self.path_on_choice.lock().unwrap().is_relative() {
+        if self.path_on_choice.read().unwrap().is_relative() {
             if let Some(choice_target_obj) = self.get_choice_target() {
-                *self.path_on_choice.lock().unwrap() = choice_target_obj.get_path();
+                *self.path_on_choice.write().unwrap() = choice_target_obj.get_path();
             }
         }
 
-        self.path_on_choice.lock().unwrap().clone()
+        self.path_on_choice.read().unwrap().clone()
     }
 
     pub fn get_path_string_on_choice(self: &Arc<Self>) -> String {
@@ -105,7 +105,7 @@ impl fmt::Display for ChoicePoint {
 
         // let mut target_string = self.get_path_on_choice()?.to_string();
 
-        let target_string = self.path_on_choice.lock().unwrap().to_string();
+        let target_string = self.path_on_choice.read().unwrap().to_string();
 
         // if let Some(line_num) = target_line_num {
         //     target_string = format!(" line {}({})", line_num, target_string);

@@ -77,7 +77,7 @@ impl Story {
             if self
                 .get_state()
                 .get_callstack()
-                .lock()
+                .read()
                 .unwrap()
                 .get_current_element()
                 .push_pop_type
@@ -87,7 +87,7 @@ impl Story {
                 let container = self
                     .get_state()
                     .get_callstack()
-                    .lock()
+                    .read()
                     .unwrap()
                     .get_current_element()
                     .current_pointer
@@ -97,7 +97,7 @@ impl Story {
                     func_detail = format!("({})", Object::get_path(container.as_ref()));
                 }
 
-                return Err(StoryError::InvalidStoryState(format!("Story was running a function {func_detail} when you called ChoosePathString({}) - this is almost certainly not what you want! Full stack trace: \n{}", path, self.get_state().get_callstack().lock()
+                return Err(StoryError::InvalidStoryState(format!("Story was running a function {func_detail} when you called ChoosePathString({}) - this is almost certainly not what you want! Full stack trace: \n{}", path, self.get_state().get_callstack().read()
             .unwrap().get_callstack_trace())));
             }
         }

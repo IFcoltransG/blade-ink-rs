@@ -1,6 +1,6 @@
 use std::{
     fmt,
-    sync::{Arc, Mutex},
+    sync::{Arc, RwLock},
 };
 
 use crate::{
@@ -13,8 +13,8 @@ use crate::{
 
 pub struct Divert {
     obj: Object,
-    target_pointer: Mutex<Pointer>,
-    target_path: Mutex<Option<Path>>,
+    target_pointer: RwLock<Pointer>,
+    target_path: RwLock<Option<Path>>,
     pub external_args: usize,
     pub is_conditional: bool,
     pub is_external: bool,
@@ -40,8 +40,8 @@ impl Divert {
             stack_push_type,
             is_external,
             external_args,
-            target_pointer: Mutex::new(pointer::NULL.clone()),
-            target_path: Mutex::new(Self::target_path_string(target_path)),
+            target_pointer: RwLock::new(pointer::NULL.clone()),
+            target_path: RwLock::new(Self::target_path_string(target_path)),
             variable_divert_name: var_divert_name,
         }
     }
@@ -83,18 +83,18 @@ impl Divert {
     }
 
     pub fn get_target_pointer(self: &Arc<Self>) -> Pointer {
-        let target_pointer_null = self.target_pointer.lock().unwrap().is_null();
+        let target_pointer_null = self.target_pointer.read().unwrap().is_null();
         if target_pointer_null {
             let target_obj = Object::resolve_path(
                 self.clone(),
-                self.target_path.lock().unwrap().as_ref().unwrap(),
+                self.target_path.read().unwrap().as_ref().unwrap(),
             )
             .obj
             .clone();
 
             if self
                 .target_path
-                .lock()
+                .read()
                 .unwrap()
                 .as_ref()
                 .unwrap()
@@ -102,11 +102,11 @@ impl Divert {
                 .unwrap()
                 .is_index()
             {
-                self.target_pointer.lock().unwrap().container =
+                self.target_pointer.write().unwrap().container =
                     target_obj.get_object().get_parent();
-                self.target_pointer.lock().unwrap().index = self
+                self.target_pointer.write().unwrap().index = self
                     .target_path
-                    .lock()
+                    .read()
                     .unwrap()
                     .as_ref()
                     .unwrap()
@@ -116,16 +116,16 @@ impl Divert {
                     .unwrap() as i32;
             } else {
                 let c = target_obj.into_any().downcast::<Container>();
-                *self.target_pointer.lock().unwrap() = Pointer::start_of(c.unwrap());
+                *self.target_pointer.write().unwrap() = Pointer::start_of(c.unwrap());
             }
         }
 
-        self.target_pointer.lock().unwrap().clone()
+        self.target_pointer.read().unwrap().clone()
     }
 
     pub fn get_target_path(self: &Arc<Self>) -> Option<Path> {
         // Resolve any relative paths to global ones as we come across them
-        let target_path = self.target_path.lock().unwrap();
+        let target_path = self.target_path.read().unwrap();
 
         match target_path.as_ref() {
             Some(target_path) => {
@@ -133,7 +133,7 @@ impl Divert {
                     let target_obj = self.get_target_pointer().resolve();
 
                     if let Some(target_obj) = target_obj {
-                        *self.target_path.lock().unwrap() =
+                        *self.target_path.write().unwrap() =
                             Some(Object::get_path(target_obj.as_ref()));
                     }
                 }
@@ -190,12 +190,12 @@ impl fmt::Display for Divert {
 
         if let Some(variable_diver_name) = &self.variable_divert_name {
             result.push_str(&format!("Divert(variable: {})", variable_diver_name));
-        } else if self.target_path.lock().unwrap().is_none() {
+        } else if self.target_path.read().unwrap().is_none() {
             result.push_str("Divert(null)");
         } else {
             let target_str = self
                 .target_path
-                .lock()
+                .read()
                 .unwrap()
                 .as_ref()
                 .unwrap()
@@ -217,7 +217,7 @@ impl fmt::Display for Divert {
 
             // TODO result.push_str(&format!(" -> {} ({})",
             // self.get_target_path_string().unwrap_or_default(), target_str));
-            let target_path = match self.target_path.lock().unwrap().as_ref() {
+            let target_path = match self.target_path.read().unwrap().as_ref() {
                 Some(t) => t.to_string(),
                 None => "".to_owned(),
             };

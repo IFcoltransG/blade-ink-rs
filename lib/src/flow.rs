@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, RwLock};
 
 use serde_json::Map;
 
@@ -14,7 +14,7 @@ use crate::{
 #[derive(Clone)]
 pub(crate) struct Flow {
     pub name: String,
-    pub callstack: Arc<Mutex<CallStack>>,
+    pub callstack: Arc<RwLock<CallStack>>,
     pub output_stream: Vec<Arc<dyn RTObject + Sync + Send>>,
     pub current_choices: Vec<Arc<Choice>>,
 }
@@ -23,7 +23,7 @@ impl Flow {
     pub fn new(name: &str, main_content_container: Arc<Container>) -> Flow {
         Flow {
             name: name.to_string(),
-            callstack: Arc::new(Mutex::new(CallStack::new(main_content_container))),
+            callstack: Arc::new(RwLock::new(CallStack::new(main_content_container))),
             output_stream: Vec::new(),
             current_choices: Vec::new(),
         }
@@ -36,7 +36,7 @@ impl Flow {
     ) -> Result<Flow, StoryError> {
         let mut flow = Self {
             name: name.to_string(),
-            callstack: Arc::new(Mutex::new(CallStack::new(main_content_container.clone()))),
+            callstack: Arc::new(RwLock::new(CallStack::new(main_content_container.clone()))),
             output_stream: json_read::jarray_to_runtime_obj_list(
                 j_obj
                     .get("outputStream")
@@ -58,7 +58,7 @@ impl Flow {
             .collect::<Vec<Arc<Choice>>>(),
         };
 
-        flow.callstack.lock().unwrap().load_json(
+        flow.callstack.write().unwrap().load_json(
             &main_content_container,
             j_obj
                 .get("callstack")
@@ -78,7 +78,7 @@ impl Flow {
 
         flow.insert(
             "callstack".to_owned(),
-            self.callstack.lock().unwrap().write_json()?,
+            self.callstack.read().unwrap().write_json()?,
         );
         flow.insert(
             "outputStream".to_owned(),
@@ -91,14 +91,14 @@ impl Flow {
         let mut has_choice_threads = false;
         let mut jct: Map<String, serde_json::Value> = Map::new();
         for c in self.current_choices.iter() {
-            *c.original_thread_index.lock().unwrap() =
+            *c.original_thread_index.write().unwrap() =
                 c.get_thread_at_generation().unwrap().thread_index;
 
             if self
                 .callstack
-                .lock()
+                .read()
                 .unwrap()
-                .get_thread_with_index(*c.original_thread_index.lock().unwrap())
+                .get_thread_with_index(*c.original_thread_index.read().unwrap())
                 .is_none()
             {
                 if !has_choice_threads {
@@ -106,7 +106,7 @@ impl Flow {
                 }
 
                 jct.insert(
-                    c.original_thread_index.lock().unwrap().to_string(),
+                    c.original_thread_index.read().unwrap().to_string(),
                     c.get_thread_at_generation().unwrap().write_json()?,
                 );
             }
@@ -135,16 +135,16 @@ impl Flow {
         main_content_container: Arc<Container>,
     ) -> Result<(), StoryError> {
         for choice in self.current_choices.iter_mut() {
-            let index = *choice.original_thread_index.lock().unwrap();
+            let index = *choice.original_thread_index.read().unwrap();
             self.callstack
-                .lock()
+                .read()
                 .unwrap()
                 .get_thread_with_index(index)
                 .map(|o| choice.set_thread_at_generation(o.clone()))
                 .or_else(|| {
                     let j_saved_choice_thread = j_choice_threads
                         .and_then(|c| {
-                            c.get(choice.original_thread_index.lock().unwrap().to_string())
+                            c.get(choice.original_thread_index.read().unwrap().to_string())
                         })
                         .ok_or("loading choice threads")
                         .unwrap();

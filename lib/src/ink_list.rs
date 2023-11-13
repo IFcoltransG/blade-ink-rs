@@ -1,5 +1,5 @@
 use core::fmt;
-use std::{collections::HashMap, sync::Mutex};
+use std::{collections::HashMap, sync::RwLock};
 
 use crate::{
     ink_list_item::InkListItem, list_definition::ListDefinition,
@@ -8,17 +8,17 @@ use crate::{
 
 pub struct InkList {
     pub items: HashMap<InkListItem, i32>,
-    pub origins: Mutex<Vec<ListDefinition>>,
+    pub origins: RwLock<Vec<ListDefinition>>,
     // we need an origin when we only have the definition (the list has not elemetns)
-    initial_origin_names: Mutex<Vec<String>>,
+    initial_origin_names: RwLock<Vec<String>>,
 }
 
 impl InkList {
     pub fn new() -> Self {
         Self {
             items: HashMap::new(),
-            origins: Mutex::new(Vec::with_capacity(0)),
-            initial_origin_names: Mutex::new(Vec::with_capacity(0)),
+            origins: RwLock::new(Vec::with_capacity(0)),
+            initial_origin_names: RwLock::new(Vec::with_capacity(0)),
         }
     }
 
@@ -35,16 +35,16 @@ impl InkList {
     ) -> Result<Self, StoryError> {
         let l = Self::new();
 
-        l.initial_origin_names.lock().unwrap().push(single_origin);
+        l.initial_origin_names.write().unwrap().push(single_origin);
 
-        let def = list_definitions.get_list_definition(&l.initial_origin_names.lock().unwrap()[0]);
+        let def = list_definitions.get_list_definition(&l.initial_origin_names.read().unwrap()[0]);
 
         if let Some(list_def) = def {
-            l.origins.lock().unwrap().push(list_def.clone());
+            l.origins.write().unwrap().push(list_def.clone());
         } else {
             return Err(StoryError::InvalidStoryState(format!(
                 "InkList origin could not be found in story when constructing new list: {}",
-                &l.initial_origin_names.lock().unwrap()[0]
+                &l.initial_origin_names.read().unwrap()[0]
             )));
         }
 
@@ -88,7 +88,7 @@ impl InkList {
     }
 
     pub fn set_initial_origin_names(&self, initial_origin_names: Vec<String>) {
-        *self.initial_origin_names.lock().unwrap() = initial_origin_names;
+        *self.initial_origin_names.write().unwrap() = initial_origin_names;
     }
 
     pub fn get_origin_names(&self) -> Vec<String> {
@@ -102,7 +102,7 @@ impl InkList {
             return names;
         }
 
-        self.initial_origin_names.lock().unwrap().clone()
+        self.initial_origin_names.read().unwrap().clone()
     }
 
     pub fn union(&self, other_list: &InkList) -> InkList {
@@ -166,7 +166,7 @@ impl InkList {
     pub(crate) fn get_all(&self) -> InkList {
         let mut list = InkList::new();
 
-        for origin in self.origins.lock().unwrap().iter_mut() {
+        for origin in self.origins.write().unwrap().iter_mut() {
             for (k, v) in origin.get_items().iter() {
                 list.items.insert(k.clone(), *v);
             }
@@ -205,7 +205,7 @@ impl InkList {
         }
 
         let mut sub_list = InkList::new();
-        sub_list.set_initial_origin_names(self.initial_origin_names.lock().unwrap().clone());
+        sub_list.set_initial_origin_names(self.initial_origin_names.read().unwrap().clone());
 
         for (k, v) in ordered {
             if *v >= min_value && *v <= max_value {
@@ -219,7 +219,7 @@ impl InkList {
     pub fn inverse(&self) -> InkList {
         let mut list = InkList::new();
 
-        for origin in self.origins.lock().unwrap().iter_mut() {
+        for origin in self.origins.write().unwrap().iter_mut() {
             for (k, v) in origin.get_items() {
                 if !self.items.contains_key(k) {
                     list.items.insert(k.clone(), *v);
@@ -355,8 +355,8 @@ impl Clone for InkList {
     fn clone(&self) -> Self {
         Self {
             items: self.items.clone(),
-            origins: self.origins.lock().unwrap().clone().into(),
-            initial_origin_names: self.initial_origin_names.lock().unwrap().clone().into(),
+            origins: self.origins.read().unwrap().clone().into(),
+            initial_origin_names: self.initial_origin_names.read().unwrap().clone().into(),
         }
     }
 }

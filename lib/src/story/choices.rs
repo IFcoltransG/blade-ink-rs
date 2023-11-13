@@ -25,7 +25,7 @@ impl Story {
         let choice_to_choose = choices.get(choice_index).unwrap();
         self.get_state()
             .get_callstack()
-            .lock()
+            .write()
             .unwrap()
             .set_current_thread(choice_to_choose.get_thread_at_generation().unwrap());
 
@@ -100,7 +100,7 @@ impl Story {
             tags,
             self.get_state()
                 .get_callstack()
-                .lock()
+                .write()
                 .unwrap()
                 .fork_thread(),
             start_text.trim().to_string(),
@@ -136,7 +136,7 @@ impl Story {
         self.get_state()
             .get_callstack()
             .as_ref()
-            .lock()
+            .write()
             .unwrap()
             .set_current_thread(choice.get_thread_at_generation().unwrap().clone());
 
@@ -148,13 +148,13 @@ impl Story {
                 .get_state()
                 .get_callstack()
                 .as_ref()
-                .lock()
+                .write()
                 .unwrap()
                 .fork_thread();
             self.get_state()
                 .get_callstack()
                 .as_ref()
-                .lock()
+                .write()
                 .unwrap()
                 .set_current_thread(fork_thread);
         }
