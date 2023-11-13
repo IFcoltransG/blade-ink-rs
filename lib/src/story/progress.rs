@@ -146,7 +146,7 @@ impl Story {
 
             // Finished a section of content / reached a choice point?
             if !self.can_continue() {
-                if self.state.get_callstack().borrow().can_pop_thread() {
+                if self.state.get_callstack().lock().unwrap().can_pop_thread() {
                     self.add_error("Thread available to pop, threads should always be flat by the end of evaluation?", false);
                 }
 
@@ -157,21 +157,23 @@ impl Story {
                     if self
                         .state
                         .get_callstack()
-                        .borrow()
+                        .lock()
+                        .unwrap()
                         .can_pop_type(Some(PushPopType::Tunnel))
                     {
                         self.add_error("unexpectedly reached end of content. Do you need a '->->' to return from a tunnel?", false);
                     } else if self
                         .state
                         .get_callstack()
-                        .borrow()
+                        .lock()
+                        .unwrap()
                         .can_pop_type(Some(PushPopType::Function))
                     {
                         self.add_error(
                             "unexpectedly reached end of content. Do you need a '~ return'?",
                             false,
                         );
-                    } else if !self.get_state().get_callstack().borrow().can_pop() {
+                    } else if !self.get_state().get_callstack().lock().unwrap().can_pop() {
                         self.add_error(
                             "ran out of content. Do you need a '-> DONE' or '-> END'?",
                             false,
@@ -208,13 +210,13 @@ impl Story {
                 Some(on_err) => {
                     if self.get_state().has_error() {
                         for err in self.get_state().get_current_errors() {
-                            on_err.borrow_mut().error(err, ErrorType::Error);
+                            on_err.lock().unwrap().error(err, ErrorType::Error);
                         }
                     }
 
                     if self.get_state().has_warning() {
                         for err in self.get_state().get_current_warnings() {
-                            on_err.borrow_mut().error(err, ErrorType::Warning);
+                            on_err.lock().unwrap().error(err, ErrorType::Warning);
                         }
                     }
 
@@ -283,7 +285,8 @@ impl Story {
             && !self
                 .get_state()
                 .get_callstack()
-                .borrow()
+                .lock()
+                .unwrap()
                 .element_is_evaluate_from_game()
         {
             self.try_follow_default_invisible_choice()?;
@@ -453,7 +456,8 @@ impl Story {
                     let context_idx = self
                         .get_state()
                         .get_callstack()
-                        .borrow()
+                        .lock()
+                        .unwrap()
                         .context_for_variable_named(&var_pointer.variable_name);
                     current_content_obj = Some(Arc::new(Value::new_variable_pointer(
                         &var_pointer.variable_name,
@@ -489,7 +493,11 @@ impl Story {
                 .downcast_ref::<ControlCommand>()
             {
                 if control_cmd.command_type == CommandType::StartThread {
-                    self.get_state().get_callstack().borrow_mut().push_thread();
+                    self.get_state()
+                        .get_callstack()
+                        .lock()
+                        .unwrap()
+                        .push_thread();
                 }
             }
         }
@@ -559,7 +567,7 @@ impl Story {
             }
 
             if current_divert.pushes_to_stack {
-                self.get_state().get_callstack().borrow_mut().push(
+                self.get_state().get_callstack().lock().unwrap().push(
                     current_divert.stack_push_type,
                     0,
                     self.get_state().get_output_stream().len() as i32,
@@ -660,11 +668,12 @@ impl Story {
                     } else if self
                         .get_state()
                         .get_callstack()
-                        .borrow()
+                        .lock()
+                        .unwrap()
                         .get_current_element()
                         .push_pop_type
                         != pop_type
-                        || !self.get_state().get_callstack().borrow().can_pop()
+                        || !self.get_state().get_callstack().lock().unwrap().can_pop()
                     {
                         let mut names: HashMap<PushPopType, String> = HashMap::new();
                         names.insert(
@@ -681,12 +690,13 @@ impl Story {
                                 &self
                                     .get_state()
                                     .get_callstack()
-                                    .borrow()
+                                    .lock()
+                                    .unwrap()
                                     .get_current_element()
                                     .push_pop_type,
                             )
                             .cloned();
-                        if !self.get_state().get_callstack().borrow().can_pop() {
+                        if !self.get_state().get_callstack().lock().unwrap().can_pop() {
                             expected = Some("end of flow (-> END or choice)".to_owned());
                         }
 
@@ -725,8 +735,10 @@ impl Story {
                     // Since we're iterating backward through the content,
                     // build a stack so that when we build the string,
                     // it's in the right order
-                    let mut content_stack_for_string: VecDeque<Arc<dyn RTObject + Sync + Send>> = VecDeque::new();
-                    let mut content_to_retain: VecDeque<Arc<dyn RTObject + Sync + Send>> = VecDeque::new();
+                    let mut content_stack_for_string: VecDeque<Arc<dyn RTObject + Sync + Send>> =
+                        VecDeque::new();
+                    let mut content_to_retain: VecDeque<Arc<dyn RTObject + Sync + Send>> =
+                        VecDeque::new();
 
                     let mut output_count_consumed = 0;
 
@@ -938,11 +950,18 @@ impl Story {
                     // We may exist in the context of the initial
                     // act of creating the thread, or in the context of
                     // evaluating the content.
-                    if self.get_state().get_callstack().borrow().can_pop_thread() {
+                    if self
+                        .get_state()
+                        .get_callstack()
+                        .lock()
+                        .unwrap()
+                        .can_pop_thread()
+                    {
                         self.get_state()
                             .get_callstack()
                             .as_ref()
-                            .borrow_mut()
+                            .lock()
+                            .unwrap()
                             .pop_thread()?;
                     }
                     // In normal flow - allow safe exit without warning
@@ -1273,7 +1292,8 @@ impl Story {
                 .get_state()
                 .get_callstack()
                 .as_ref()
-                .borrow()
+                .lock()
+                .unwrap()
                 .can_pop_type(Some(PushPopType::Function));
             if can_pop_type {
                 // Pop from the call stack
@@ -1294,13 +1314,15 @@ impl Story {
                 .get_state()
                 .get_callstack()
                 .as_ref()
-                .borrow()
+                .lock()
+                .unwrap()
                 .can_pop_thread()
             {
                 self.get_state()
                     .get_callstack()
                     .as_ref()
-                    .borrow_mut()
+                    .lock()
+                    .unwrap()
                     .pop_thread()?;
 
                 did_pop = true;
@@ -1325,7 +1347,8 @@ impl Story {
             .get_state()
             .get_callstack()
             .as_ref()
-            .borrow()
+            .lock()
+            .unwrap()
             .get_current_element()
             .current_pointer
             .clone();
@@ -1372,7 +1395,8 @@ impl Story {
         self.get_state()
             .get_callstack()
             .as_ref()
-            .borrow_mut()
+            .lock()
+            .unwrap()
             .get_current_element_mut()
             .current_pointer = pointer;
 
@@ -1448,7 +1472,7 @@ impl Story {
         if let Some(current_choices) = self.get_state().get_current_choices() {
             for c in current_choices {
                 if !c.is_invisible_default {
-                    c.index.replace(choices.len());
+                    *c.index.lock().unwrap() = choices.len();
                     choices.push(c.clone());
                 }
             }

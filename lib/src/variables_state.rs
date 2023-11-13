@@ -1,7 +1,6 @@
 use std::{
-    sync::Mutex,
     collections::{HashMap, HashSet},
-    sync::Arc,
+    sync::{Arc, Mutex},
 };
 
 use serde_json::Map;
@@ -135,7 +134,7 @@ impl VariablesState {
         if set_global {
             self.set_global(&name, value);
         } else {
-            self.callstack.borrow_mut().set_temporary_variable(
+            self.callstack.lock().unwrap().set_temporary_variable(
                 name,
                 value,
                 var_ass.is_new_declaration,
@@ -226,7 +225,7 @@ impl VariablesState {
             return 0;
         }
 
-        return self.callstack.borrow().get_current_element_index();
+        return self.callstack.lock().unwrap().get_current_element_index();
     }
 
     fn get_raw_variable_with_name(&self, name: &str, context_index: i32) -> Option<Arc<Value>> {
@@ -263,7 +262,8 @@ impl VariablesState {
         // Temporary
         let var_value = self
             .callstack
-            .borrow()
+            .lock()
+            .unwrap()
             .get_temporary_variable_with_name(name, context_index);
 
         var_value

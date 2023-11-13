@@ -1,4 +1,7 @@
-use std::{sync::Mutex, collections::HashMap, sync::Arc};
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+};
 
 use crate::{
     callstack::CallStack,
@@ -105,7 +108,8 @@ impl StoryState {
 
     pub fn get_current_pointer(&self) -> Pointer {
         self.get_callstack()
-            .borrow()
+            .lock()
+            .unwrap()
             .get_current_element()
             .current_pointer
             .clone()
@@ -323,21 +327,24 @@ impl StoryState {
     pub fn set_current_pointer(&self, pointer: Pointer) {
         self.get_callstack()
             .as_ref()
-            .borrow_mut()
+            .lock()
+            .unwrap()
             .get_current_element_mut()
             .current_pointer = pointer;
     }
 
     pub fn get_in_expression_evaluation(&self) -> bool {
         self.get_callstack()
-            .borrow()
+            .lock()
+            .unwrap()
             .get_current_element()
             .in_expression_evaluation
     }
 
     pub fn set_in_expression_evaluation(&self, value: bool) {
         self.get_callstack()
-            .borrow_mut()
+            .lock()
+            .unwrap()
             .get_current_element_mut()
             .in_expression_evaluation = value;
     }
@@ -346,12 +353,18 @@ impl StoryState {
         if let Some(list) = Value::get_list_value(obj.as_ref()) {
             let origin_names = list.get_origin_names();
 
-            list.origins.borrow_mut().clear();
+            list.origins.lock().unwrap().clear();
 
             for name in &origin_names {
                 let def = self.list_definitions.get_list_definition(name).unwrap();
-                if !list.origins.borrow().iter().any(|e| std::ptr::eq(e, def)) {
-                    list.origins.borrow_mut().push(def.clone());
+                if !list
+                    .origins
+                    .lock()
+                    .unwrap()
+                    .iter()
+                    .any(|e| std::ptr::eq(e, def))
+                {
+                    list.origins.lock().unwrap().push(def.clone());
                 }
             }
         }
@@ -531,7 +544,7 @@ impl StoryState {
 
             {
                 // block to release cs borrow
-                let cs = self.get_callstack().borrow();
+                let cs = self.get_callstack().lock().unwrap();
                 let curr_el = cs.get_current_element();
                 if curr_el.push_pop_type == PushPopType::Function {
                     function_trim_index = curr_el.function_start_in_output_stream;
@@ -573,7 +586,7 @@ impl StoryState {
                     }
 
                     if function_trim_index > -1 {
-                        let mut cs = self.get_callstack().as_ref().borrow_mut();
+                        let mut cs = self.get_callstack().as_ref().lock().unwrap();
                         let callstack_elements = cs.get_elements_mut();
                         for i in (0..callstack_elements.len()).rev() {
                             if let Some(el) = callstack_elements.get_mut(i) {
@@ -674,7 +687,8 @@ impl StoryState {
     pub fn set_previous_pointer(&self, p: Pointer) {
         self.get_callstack()
             .as_ref()
-            .borrow_mut()
+            .lock()
+            .unwrap()
             .get_current_thread_mut()
             .previous_pointer = p.clone();
     }
@@ -682,7 +696,8 @@ impl StoryState {
     pub fn get_previous_pointer(&self) -> Pointer {
         self.get_callstack()
             .as_ref()
-            .borrow_mut()
+            .lock()
+            .unwrap()
             .get_current_thread_mut()
             .previous_pointer
             .clone()
@@ -691,7 +706,8 @@ impl StoryState {
     pub fn try_exit_function_evaluation_from_game(&mut self) -> bool {
         if self
             .get_callstack()
-            .borrow()
+            .lock()
+            .unwrap()
             .get_current_element()
             .push_pop_type
             == PushPopType::FunctionEvaluationFromGame
@@ -708,7 +724,8 @@ impl StoryState {
         // Add the end of a function call, trim any whitespace from the end.
         if self
             .get_callstack()
-            .borrow()
+            .lock()
+            .unwrap()
             .get_current_element()
             .push_pop_type
             == PushPopType::Function
@@ -716,13 +733,14 @@ impl StoryState {
             self.trim_whitespace_from_function_end();
         }
 
-        self.get_callstack().borrow_mut().pop(t)
+        self.get_callstack().lock().unwrap().pop(t)
     }
 
     fn go_to_start(&self) {
         self.get_callstack()
             .as_ref()
-            .borrow_mut()
+            .lock()
+            .unwrap()
             .get_current_element_mut()
             .current_pointer = Pointer::start_of(self.main_content_container.clone())
     }
@@ -751,7 +769,7 @@ impl StoryState {
         // _namedFlows
         copy.current_flow.name = self.current_flow.name.clone();
         copy.current_flow.callstack = Arc::new(Mutex::new(
-            self.current_flow.callstack.as_ref().borrow().clone(),
+            self.current_flow.callstack.as_ref().lock().unwrap().clone(),
         ));
         copy.current_flow.current_choices = self.current_flow.current_choices.clone();
         copy.current_flow.output_stream = self.current_flow.output_stream.clone();
@@ -869,7 +887,8 @@ impl StoryState {
         number_of_objects: usize,
     ) -> Vec<Arc<dyn RTObject + Sync + Send>> {
         let start = self.evaluation_stack.len() - number_of_objects;
-        let obj: Vec<Arc<dyn RTObject + Sync + Send>> = self.evaluation_stack.drain(start..).collect();
+        let obj: Vec<Arc<dyn RTObject + Sync + Send>> =
+            self.evaluation_stack.drain(start..).collect();
 
         obj
     }
@@ -901,7 +920,7 @@ impl StoryState {
     }
 
     pub(crate) fn force_end(&mut self) {
-        self.get_callstack().borrow_mut().reset();
+        self.get_callstack().lock().unwrap().reset();
 
         self.current_flow.current_choices.clear();
 
@@ -918,7 +937,8 @@ impl StoryState {
     fn trim_whitespace_from_function_end(&mut self) {
         assert_eq!(
             self.get_callstack()
-                .borrow()
+                .lock()
+                .unwrap()
                 .get_current_element()
                 .push_pop_type,
             PushPopType::Function
@@ -926,7 +946,8 @@ impl StoryState {
 
         let function_start_point = match self
             .get_callstack()
-            .borrow()
+            .lock()
+            .unwrap()
             .get_current_element()
             .function_start_in_output_stream
         {
@@ -964,13 +985,14 @@ impl StoryState {
         func_container: Arc<Container>,
         arguments: Option<&Vec<ValueType>>,
     ) -> Result<(), StoryError> {
-        self.get_callstack().borrow_mut().push(
+        self.get_callstack().lock().unwrap().push(
             PushPopType::FunctionEvaluationFromGame,
             self.evaluation_stack.len(),
             0,
         );
         self.get_callstack()
-            .borrow_mut()
+            .lock()
+            .unwrap()
             .get_current_element_mut()
             .current_pointer = Pointer::start_of(func_container);
 
@@ -1010,20 +1032,22 @@ impl StoryState {
     ) -> Result<Option<ValueType>, StoryError> {
         if self
             .get_callstack()
-            .borrow()
+            .lock()
+            .unwrap()
             .get_current_element()
             .push_pop_type
             != PushPopType::FunctionEvaluationFromGame
         {
             return Err(StoryError::InvalidStoryState(format!(
                 "Expected external function evaluation to be complete. Stack trace: {}",
-                self.get_callstack().borrow().get_callstack_trace()
+                self.get_callstack().lock().unwrap().get_callstack_trace()
             )));
         }
 
         let original_evaluation_stack_height = self
             .get_callstack()
-            .borrow()
+            .lock()
+            .unwrap()
             .get_current_element()
             .evaluation_stack_height_when_pushed;
 
@@ -1042,7 +1066,8 @@ impl StoryState {
 
         // Finally, pop the external function evaluation
         self.get_callstack()
-            .borrow_mut()
+            .lock()
+            .unwrap()
             .pop(Some(PushPopType::FunctionEvaluationFromGame))?;
 
         // What did we get back?
@@ -1326,7 +1351,7 @@ impl StoryState {
         else {
             self.named_flows = None;
             self.current_flow.name = "default".to_owned(); // Replace with the default flow name
-            self.current_flow.callstack.borrow_mut().load_json(
+            self.current_flow.callstack.lock().unwrap().load_json(
                 &self.main_content_container,
                 j_object
                     .get("callstackThreads")

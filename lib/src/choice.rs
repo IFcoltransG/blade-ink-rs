@@ -13,14 +13,16 @@ pub struct Choice {
     obj: Object,
     thread_at_generation: Mutex<Option<Thread>>,
     pub(crate) original_thread_index: Mutex<usize>,
-    /// Get the path to the original choice point - where was this choice defined in the story?
+    /// Get the path to the original choice point - where was this choice
+    /// defined in the story?
     pub(crate) source_path: String,
     pub(crate) target_path: Path,
     pub(crate) is_invisible_default: bool,
     /// Ink tags attached to this `Choice`.
     pub tags: Vec<String>,
-    /// The original index into `currentChoices` list on the [`Story`](crate::story::Story) when
-    /// this `Choice` was generated, for convenience.
+    /// The original index into `currentChoices` list on the
+    /// [`Story`](crate::story::Story) when this `Choice` was generated, for
+    /// convenience.
     pub index: Mutex<usize>,
     /// The main text to present to the player for this `Choice`.
     pub text: String,
@@ -69,12 +71,13 @@ impl Choice {
     }
 
     pub(crate) fn set_thread_at_generation(&self, thread: Thread) {
-        self.thread_at_generation.replace(Some(thread));
+        *self.thread_at_generation.lock().unwrap() = Some(thread);
     }
 
     pub(crate) fn get_thread_at_generation(&self) -> Option<Thread> {
         self.thread_at_generation
-            .borrow()
+            .lock()
+            .unwrap()
             .as_ref()
             .map(|t| t.clone())
     }

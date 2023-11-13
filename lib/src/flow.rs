@@ -1,4 +1,4 @@
-use std::{sync::Mutex, sync::Arc};
+use std::sync::{Arc, Mutex};
 
 use serde_json::Map;
 
@@ -58,7 +58,7 @@ impl Flow {
             .collect::<Vec<Arc<Choice>>>(),
         };
 
-        flow.callstack.borrow_mut().load_json(
+        flow.callstack.lock().unwrap().load_json(
             &main_content_container,
             j_obj
                 .get("callstack")
@@ -78,7 +78,7 @@ impl Flow {
 
         flow.insert(
             "callstack".to_owned(),
-            self.callstack.borrow().write_json()?,
+            self.callstack.lock().unwrap().write_json()?,
         );
         flow.insert(
             "outputStream".to_owned(),
@@ -91,13 +91,14 @@ impl Flow {
         let mut has_choice_threads = false;
         let mut jct: Map<String, serde_json::Value> = Map::new();
         for c in self.current_choices.iter() {
-            c.original_thread_index
-                .replace(c.get_thread_at_generation().unwrap().thread_index);
+            *c.original_thread_index.lock().unwrap() =
+                c.get_thread_at_generation().unwrap().thread_index;
 
             if self
                 .callstack
-                .borrow()
-                .get_thread_with_index(*c.original_thread_index.borrow())
+                .lock()
+                .unwrap()
+                .get_thread_with_index(*c.original_thread_index.lock().unwrap())
                 .is_none()
             {
                 if !has_choice_threads {
@@ -105,7 +106,7 @@ impl Flow {
                 }
 
                 jct.insert(
-                    c.original_thread_index.borrow().to_string(),
+                    c.original_thread_index.lock().unwrap().to_string(),
                     c.get_thread_at_generation().unwrap().write_json()?,
                 );
             }
@@ -135,12 +136,15 @@ impl Flow {
     ) -> Result<(), StoryError> {
         for choice in self.current_choices.iter_mut() {
             self.callstack
-                .borrow()
-                .get_thread_with_index(*choice.original_thread_index.borrow())
+                .lock()
+                .unwrap()
+                .get_thread_with_index(*choice.original_thread_index.lock().unwrap())
                 .map(|o| choice.set_thread_at_generation(o.clone()))
                 .or_else(|| {
                     let j_saved_choice_thread = j_choice_threads
-                        .and_then(|c| c.get(choice.original_thread_index.borrow().to_string()))
+                        .and_then(|c| {
+                            c.get(choice.original_thread_index.lock().unwrap().to_string())
+                        })
                         .ok_or("loading choice threads")
                         .unwrap();
                     choice.set_thread_at_generation(

@@ -25,7 +25,8 @@ impl Story {
         let choice_to_choose = choices.get(choice_index).unwrap();
         self.get_state()
             .get_callstack()
-            .borrow_mut()
+            .lock()
+            .unwrap()
             .set_current_thread(choice_to_choose.get_thread_at_generation().unwrap());
 
         self.choose_path(&choice_to_choose.target_path, true)?;
@@ -97,7 +98,11 @@ impl Story {
             Object::get_path(choice_point.as_ref()).to_string(),
             choice_point.is_invisible_default(),
             tags,
-            self.get_state().get_callstack().borrow_mut().fork_thread(),
+            self.get_state()
+                .get_callstack()
+                .lock()
+                .unwrap()
+                .fork_thread(),
             start_text.trim().to_string(),
         ));
 
@@ -131,7 +136,8 @@ impl Story {
         self.get_state()
             .get_callstack()
             .as_ref()
-            .borrow_mut()
+            .lock()
+            .unwrap()
             .set_current_thread(choice.get_thread_at_generation().unwrap().clone());
 
         // If there's a chance that this state will be rolled back to before
@@ -142,12 +148,14 @@ impl Story {
                 .get_state()
                 .get_callstack()
                 .as_ref()
-                .borrow_mut()
+                .lock()
+                .unwrap()
                 .fork_thread();
             self.get_state()
                 .get_callstack()
                 .as_ref()
-                .borrow_mut()
+                .lock()
+                .unwrap()
                 .set_current_thread(fork_thread);
         }
 

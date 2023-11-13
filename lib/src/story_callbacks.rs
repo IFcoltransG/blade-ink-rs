@@ -1,6 +1,9 @@
 //! For setting the callbacks functions that will be called while the [`Story`]
 //! is processing.
-use std::{sync::Mutex, collections::HashSet, sync::Arc};
+use std::{
+    collections::HashSet,
+    sync::{Arc, Mutex},
+};
 
 use crate::{
     container::Container, divert::Divert, object::RTObject, pointer::Pointer,
@@ -10,12 +13,12 @@ use crate::{
 
 /// Defines the method that will be called when an observed global variable
 /// changes.
-pub trait VariableObserver {
+pub trait VariableObserver: Send {
     fn changed(&mut self, variable_name: &str, value: &ValueType);
 }
 
 /// Defines the method callback implementing an external function.
-pub trait ExternalFunction {
+pub trait ExternalFunction: Send {
     fn call(&mut self, func_name: &str, args: Vec<ValueType>) -> Option<ValueType>;
 }
 
@@ -26,7 +29,7 @@ pub(crate) struct ExternalFunctionDef {
 
 /// Defines the method that will be called when an error occurs while executing
 /// the story.
-pub trait ErrorHandler {
+pub trait ErrorHandler: Send {
     fn error(&mut self, message: &str, error_type: ErrorType);
 }
 
@@ -139,7 +142,7 @@ impl Story {
 
         if let Some(observers) = observers {
             for o in observers.iter() {
-                o.borrow_mut().changed(variable_name, value);
+                o.lock().unwrap().changed(variable_name, value);
             }
         }
     }
@@ -228,7 +231,7 @@ impl Story {
                 if let Some(fallback_function_container) = self.knot_container_with_name(func_name)
                 {
                     // Divert direct into fallback function and we're done
-                    self.get_state().get_callstack().borrow_mut().push(
+                    self.get_state().get_callstack().lock().unwrap().push(
                         PushPopType::Function,
                         0,
                         self.get_state().get_output_stream().len() as i32,
@@ -275,7 +278,8 @@ impl Story {
         let func_result = func_def
             .unwrap()
             .function
-            .borrow_mut()
+            .lock()
+            .unwrap()
             .call(func_name, arguments);
 
         // Convert return value (if any) to a type that the ink engine can use

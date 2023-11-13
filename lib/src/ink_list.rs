@@ -1,12 +1,11 @@
 use core::fmt;
-use std::{sync::Mutex, collections::HashMap};
+use std::{collections::HashMap, sync::Mutex};
 
 use crate::{
     ink_list_item::InkListItem, list_definition::ListDefinition,
     list_definitions_origin::ListDefinitionsOrigin, story_error::StoryError, value_type::ValueType,
 };
 
-#[derive(Clone)]
 pub struct InkList {
     pub items: HashMap<InkListItem, i32>,
     pub origins: Mutex<Vec<ListDefinition>>,
@@ -36,34 +35,20 @@ impl InkList {
     ) -> Result<Self, StoryError> {
         let l = Self::new();
 
-        l.initial_origin_names.borrow_mut().push(single_origin);
+        l.initial_origin_names.lock().unwrap().push(single_origin);
 
-        let def = list_definitions.get_list_definition(&l.initial_origin_names.borrow()[0]);
+        let def = list_definitions.get_list_definition(&l.initial_origin_names.lock().unwrap()[0]);
 
         if let Some(list_def) = def {
-            l.origins.borrow_mut().push(list_def.clone());
+            l.origins.lock().unwrap().push(list_def.clone());
         } else {
             return Err(StoryError::InvalidStoryState(format!(
                 "InkList origin could not be found in story when constructing new list: {}",
-                &l.initial_origin_names.borrow()[0]
+                &l.initial_origin_names.lock().unwrap()[0]
             )));
         }
 
         Ok(l)
-    }
-
-    fn from_other_list(other_list: &InkList) -> Self {
-        let mut ink_list = InkList::new();
-
-        for (item, value) in &other_list.items {
-            ink_list.items.insert(item.clone(), *value);
-        }
-
-        ink_list.initial_origin_names = other_list.initial_origin_names.clone();
-
-        ink_list.origins = other_list.origins.clone();
-
-        ink_list
     }
 
     fn get_ordered_items(&self) -> Vec<(&InkListItem, &i32)> {
@@ -103,7 +88,7 @@ impl InkList {
     }
 
     pub fn set_initial_origin_names(&self, initial_origin_names: Vec<String>) {
-        self.initial_origin_names.replace(initial_origin_names);
+        *self.initial_origin_names.lock().unwrap() = initial_origin_names;
     }
 
     pub fn get_origin_names(&self) -> Vec<String> {
@@ -117,11 +102,11 @@ impl InkList {
             return names;
         }
 
-        self.initial_origin_names.borrow().clone()
+        self.initial_origin_names.lock().unwrap().clone()
     }
 
     pub fn union(&self, other_list: &InkList) -> InkList {
-        let mut union = InkList::from_other_list(self);
+        let mut union = self.clone();
 
         for (key, value) in &other_list.items {
             union.items.insert(key.clone(), *value);
@@ -131,7 +116,7 @@ impl InkList {
     }
 
     pub fn without(&self, other_list: &InkList) -> InkList {
-        let mut result = InkList::from_other_list(self);
+        let mut result = self.clone();
 
         other_list.items.iter().for_each(|(key, _)| {
             result.items.remove(key);
@@ -181,7 +166,7 @@ impl InkList {
     pub(crate) fn get_all(&self) -> InkList {
         let mut list = InkList::new();
 
-        for origin in self.origins.borrow_mut().iter_mut() {
+        for origin in self.origins.lock().unwrap().iter_mut() {
             for (k, v) in origin.get_items().iter() {
                 list.items.insert(k.clone(), *v);
             }
@@ -220,7 +205,7 @@ impl InkList {
         }
 
         let mut sub_list = InkList::new();
-        sub_list.set_initial_origin_names(self.initial_origin_names.borrow().clone());
+        sub_list.set_initial_origin_names(self.initial_origin_names.lock().unwrap().clone());
 
         for (k, v) in ordered {
             if *v >= min_value && *v <= max_value {
@@ -234,7 +219,7 @@ impl InkList {
     pub fn inverse(&self) -> InkList {
         let mut list = InkList::new();
 
-        for origin in self.origins.borrow_mut().iter_mut() {
+        for origin in self.origins.lock().unwrap().iter_mut() {
             for (k, v) in origin.get_items() {
                 if !self.items.contains_key(k) {
                     list.items.insert(k.clone(), *v);
@@ -363,5 +348,15 @@ impl fmt::Display for InkList {
         }
 
         write!(f, "{}", result)
+    }
+}
+
+impl Clone for InkList {
+    fn clone(&self) -> Self {
+        Self {
+            items: self.items.clone(),
+            origins: self.origins.lock().unwrap().clone().into(),
+            initial_origin_names: self.initial_origin_names.lock().unwrap().clone().into(),
+        }
     }
 }

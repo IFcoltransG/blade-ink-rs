@@ -1,8 +1,7 @@
 use std::{
     any::Any,
-    sync::Mutex,
     fmt::Display,
-    sync::{Arc, Weak},
+    sync::{Arc, Mutex, Weak},
 };
 
 use as_any::{AsAny, Downcast};
@@ -28,19 +27,19 @@ impl Object {
     }
 
     pub fn is_root(&self) -> bool {
-        self.parent.borrow().upgrade().is_none()
+        self.parent.lock().unwrap().upgrade().is_none()
     }
 
     pub fn get_parent(&self) -> Option<Arc<Container>> {
-        self.parent.borrow().upgrade()
+        self.parent.lock().unwrap().upgrade()
     }
 
     pub fn set_parent(&self, parent: &Arc<Container>) {
-        self.parent.replace(Arc::downgrade(parent));
+        *self.parent.lock().unwrap() = Arc::downgrade(parent);
     }
 
     pub fn get_path(rtobject: &dyn RTObject) -> Path {
-        if let Some(p) = rtobject.get_object().path.borrow().as_ref() {
+        if let Some(p) = rtobject.get_object().path.lock().unwrap().as_ref() {
             return p.clone();
         }
 
@@ -83,23 +82,19 @@ impl Object {
                 // Reverse list because components are searched in reverse order.
                 comps.reverse();
 
-                rtobject
-                    .get_object()
-                    .path
-                    .replace(Some(Path::new(&comps, Path::default().is_relative())));
+                *rtobject.get_object().path.lock().unwrap() =
+                    Some(Path::new(&comps, Path::default().is_relative()));
             }
             None => {
-                rtobject
-                    .get_object()
-                    .path
-                    .replace(Some(Path::new_with_defaults()));
+                *rtobject.get_object().path.lock().unwrap() = Some(Path::new_with_defaults());
             }
         }
 
         rtobject
             .get_object()
             .path
-            .borrow()
+            .lock()
+            .unwrap()
             .as_ref()
             .unwrap()
             .clone()
@@ -128,7 +123,7 @@ impl Object {
         // 1. Find last shared ancestor
         // 2. Drill up using ".." style (actually represented as "^")
         // 3. Re-build downward chain from common ancestor
-        let own_path = rtobject.get_object().path.borrow();
+        let own_path = rtobject.get_object().path.lock().unwrap();
         let min_path_length = std::cmp::min(global_path.len(), own_path.as_ref().unwrap().len());
         let mut last_shared_path_comp_index: i32 = -1;
 

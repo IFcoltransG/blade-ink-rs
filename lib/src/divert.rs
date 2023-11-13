@@ -1,4 +1,7 @@
-use std::{sync::Mutex, fmt, sync::Arc};
+use std::{
+    fmt,
+    sync::{Arc, Mutex},
+};
 
 use crate::{
     container::Container,
@@ -80,26 +83,31 @@ impl Divert {
     }
 
     pub fn get_target_pointer(self: &Arc<Self>) -> Pointer {
-        let target_pointer_null = self.target_pointer.borrow().is_null();
+        let target_pointer_null = self.target_pointer.lock().unwrap().is_null();
         if target_pointer_null {
-            let target_obj =
-                Object::resolve_path(self.clone(), self.target_path.borrow().as_ref().unwrap())
-                    .obj
-                    .clone();
+            let target_obj = Object::resolve_path(
+                self.clone(),
+                self.target_path.lock().unwrap().as_ref().unwrap(),
+            )
+            .obj
+            .clone();
 
             if self
                 .target_path
-                .borrow()
+                .lock()
+                .unwrap()
                 .as_ref()
                 .unwrap()
                 .get_last_component()
                 .unwrap()
                 .is_index()
             {
-                self.target_pointer.borrow_mut().container = target_obj.get_object().get_parent();
-                self.target_pointer.borrow_mut().index = self
+                self.target_pointer.lock().unwrap().container =
+                    target_obj.get_object().get_parent();
+                self.target_pointer.lock().unwrap().index = self
                     .target_path
-                    .borrow()
+                    .lock()
+                    .unwrap()
                     .as_ref()
                     .unwrap()
                     .get_last_component()
@@ -108,16 +116,16 @@ impl Divert {
                     .unwrap() as i32;
             } else {
                 let c = target_obj.into_any().downcast::<Container>();
-                self.target_pointer.replace(Pointer::start_of(c.unwrap()));
+                *self.target_pointer.lock().unwrap() = Pointer::start_of(c.unwrap());
             }
         }
 
-        self.target_pointer.borrow().clone()
+        self.target_pointer.lock().unwrap().clone()
     }
 
     pub fn get_target_path(self: &Arc<Self>) -> Option<Path> {
         // Resolve any relative paths to global ones as we come across them
-        let target_path = self.target_path.borrow();
+        let target_path = self.target_path.lock().unwrap();
 
         match target_path.as_ref() {
             Some(target_path) => {
@@ -125,11 +133,11 @@ impl Divert {
                     let target_obj = self.get_target_pointer().resolve();
 
                     if let Some(target_obj) = target_obj {
-                        self.target_path
-                            .replace(Some(Object::get_path(target_obj.as_ref())));
+                        *self.target_path.lock().unwrap() =
+                            Some(Object::get_path(target_obj.as_ref()));
                     }
                 }
-                Some(self.target_path.borrow().as_ref().unwrap().clone())
+                Some(self.target_path.lock().unwrap().as_ref().unwrap().clone())
             }
             None => None,
         }
@@ -182,12 +190,13 @@ impl fmt::Display for Divert {
 
         if let Some(variable_diver_name) = &self.variable_divert_name {
             result.push_str(&format!("Divert(variable: {})", variable_diver_name));
-        } else if self.target_path.borrow().is_none() {
+        } else if self.target_path.lock().unwrap().is_none() {
             result.push_str("Divert(null)");
         } else {
             let target_str = self
                 .target_path
-                .borrow()
+                .lock()
+                .unwrap()
                 .as_ref()
                 .unwrap()
                 .get_components_string();
@@ -206,8 +215,9 @@ impl fmt::Display for Divert {
                 }
             }
 
-            // TODO result.push_str(&format!(" -> {} ({})", self.get_target_path_string().unwrap_or_default(), target_str));
-            let target_path = match self.target_path.borrow().as_ref() {
+            // TODO result.push_str(&format!(" -> {} ({})",
+            // self.get_target_path_string().unwrap_or_default(), target_str));
+            let target_path = match self.target_path.lock().unwrap().as_ref() {
                 Some(t) => t.to_string(),
                 None => "".to_owned(),
             };

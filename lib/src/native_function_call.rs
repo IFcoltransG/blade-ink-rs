@@ -285,7 +285,10 @@ impl NativeFunctionCall {
         )))
     }
 
-    fn call_list_increment_operation(&self, list_int_params: &[Arc<dyn RTObject + Sync + Send>]) -> Arc<Value> {
+    fn call_list_increment_operation(
+        &self,
+        list_int_params: &[Arc<dyn RTObject + Sync + Send>],
+    ) -> Arc<Value> {
         let list_val = Value::get_list_value(list_int_params[0].as_ref()).unwrap();
         let int_val = Value::get_int_value(list_int_params[1].as_ref()).unwrap();
 
@@ -300,7 +303,7 @@ impl NativeFunctionCall {
                 }
             };
 
-            let origins = list_val.origins.borrow();
+            let origins = list_val.origins.lock().unwrap();
 
             let item_origin = origins.iter().find(|origin| {
                 origin.get_name() == list_item.get_origin_name().unwrap_or(&"".to_owned())
@@ -318,7 +321,10 @@ impl NativeFunctionCall {
         Arc::new(Value::new_list(result_raw_list))
     }
 
-    fn call_type(&self, coerced_params: Vec<Arc<Value>>) -> Result<Arc<dyn RTObject + Sync + Send>, StoryError> {
+    fn call_type(
+        &self,
+        coerced_params: Vec<Arc<Value>>,
+    ) -> Result<Arc<dyn RTObject + Sync + Send>, StoryError> {
         match self.op {
             Op::Add => self.add_op(&coerced_params),
             Op::Subtract => self.subtract_op(&coerced_params),
@@ -428,7 +434,10 @@ impl NativeFunctionCall {
         }
     }
 
-    fn greater_op(&self, params: &[Arc<Value>]) -> Result<Arc<dyn RTObject + Sync + Send>, StoryError> {
+    fn greater_op(
+        &self,
+        params: &[Arc<Value>],
+    ) -> Result<Arc<dyn RTObject + Sync + Send>, StoryError> {
         match &params[0].value {
             ValueType::Int(op1) => match params[1].value {
                 ValueType::Int(op2) => Ok(Arc::new(Value::new_bool(*op1 > op2))),
@@ -454,7 +463,10 @@ impl NativeFunctionCall {
         }
     }
 
-    fn less_op(&self, params: &[Arc<Value>]) -> Result<Arc<dyn RTObject + Sync + Send>, StoryError> {
+    fn less_op(
+        &self,
+        params: &[Arc<Value>],
+    ) -> Result<Arc<dyn RTObject + Sync + Send>, StoryError> {
         match &params[0].value {
             ValueType::Int(op1) => match params[1].value {
                 ValueType::Int(op2) => Ok(Arc::new(Value::new_bool(*op1 < op2))),
@@ -511,7 +523,10 @@ impl NativeFunctionCall {
         }
     }
 
-    fn less_than_or_equals_op(&self, params: &[Arc<Value>]) -> Result<Arc<dyn RTObject + Sync + Send>, StoryError> {
+    fn less_than_or_equals_op(
+        &self,
+        params: &[Arc<Value>],
+    ) -> Result<Arc<dyn RTObject + Sync + Send>, StoryError> {
         match &params[0].value {
             ValueType::Int(op1) => match params[1].value {
                 ValueType::Int(op2) => Ok(Arc::new(Value::new_bool(*op1 <= op2))),
@@ -537,7 +552,10 @@ impl NativeFunctionCall {
         }
     }
 
-    fn subtract_op(&self, params: &[Arc<Value>]) -> Result<Arc<dyn RTObject + Sync + Send>, StoryError> {
+    fn subtract_op(
+        &self,
+        params: &[Arc<Value>],
+    ) -> Result<Arc<dyn RTObject + Sync + Send>, StoryError> {
         match &params[0].value {
             ValueType::Int(op1) => match params[1].value {
                 ValueType::Int(op2) => Ok(Arc::new(Value::new_int(*op1 - op2))),
@@ -600,7 +618,10 @@ impl NativeFunctionCall {
         }
     }
 
-    fn divide_op(&self, params: &[Arc<Value>]) -> Result<Arc<dyn RTObject + Sync + Send>, StoryError> {
+    fn divide_op(
+        &self,
+        params: &[Arc<Value>],
+    ) -> Result<Arc<dyn RTObject + Sync + Send>, StoryError> {
         match params[0].value {
             ValueType::Int(op1) => match params[1].value {
                 ValueType::Int(op2) => Ok(Arc::new(Value::new_int(op1 / op2))),
@@ -623,7 +644,9 @@ impl NativeFunctionCall {
     fn pow_op(&self, params: &[Arc<Value>]) -> Result<Arc<dyn RTObject + Sync + Send>, StoryError> {
         match params[0].value {
             ValueType::Int(op1) => match params[1].value {
-                ValueType::Int(op2) => Ok(Arc::new(Value::new_float((op1 as f32).powf(op2 as f32)))),
+                ValueType::Int(op2) => {
+                    Ok(Arc::new(Value::new_float((op1 as f32).powf(op2 as f32))))
+                }
                 _ => Err(StoryError::InvalidStoryState(
                     "Operation not available for type.".to_owned(),
                 )),
@@ -640,7 +663,10 @@ impl NativeFunctionCall {
         }
     }
 
-    fn multiply_op(&self, params: &[Arc<Value>]) -> Result<Arc<dyn RTObject + Sync + Send>, StoryError> {
+    fn multiply_op(
+        &self,
+        params: &[Arc<Value>],
+    ) -> Result<Arc<dyn RTObject + Sync + Send>, StoryError> {
         match params[0].value {
             ValueType::Int(op1) => match params[1].value {
                 ValueType::Int(op2) => Ok(Arc::new(Value::new_int(op1 * op2))),
@@ -748,7 +774,10 @@ impl NativeFunctionCall {
         }
     }
 
-    fn equal_op(&self, params: &[Arc<Value>]) -> Result<Arc<dyn RTObject + Sync + Send>, StoryError> {
+    fn equal_op(
+        &self,
+        params: &[Arc<Value>],
+    ) -> Result<Arc<dyn RTObject + Sync + Send>, StoryError> {
         match &params[0].value {
             ValueType::Bool(op1) => match params[1].value {
                 ValueType::Bool(op2) => Ok(Arc::new(Value::new_bool(*op1 == op2))),
@@ -792,7 +821,10 @@ impl NativeFunctionCall {
         }
     }
 
-    fn not_equals_op(&self, params: &[Arc<Value>]) -> Result<Arc<dyn RTObject + Sync + Send>, StoryError> {
+    fn not_equals_op(
+        &self,
+        params: &[Arc<Value>],
+    ) -> Result<Arc<dyn RTObject + Sync + Send>, StoryError> {
         match &params[0].value {
             ValueType::Bool(op1) => match params[1].value {
                 ValueType::Bool(op2) => Ok(Arc::new(Value::new_bool(*op1 != op2))),
@@ -813,7 +845,9 @@ impl NativeFunctionCall {
                 )),
             },
             ValueType::String(op1) => match &params[1].value {
-                ValueType::String(op2) => Ok(Arc::new(Value::new_bool(!op1.string.eq(&op2.string)))),
+                ValueType::String(op2) => {
+                    Ok(Arc::new(Value::new_bool(!op1.string.eq(&op2.string))))
+                }
                 _ => Err(StoryError::InvalidStoryState(
                     "Operation not available for type.".to_owned(),
                 )),
@@ -856,7 +890,10 @@ impl NativeFunctionCall {
         }
     }
 
-    fn intersect_op(&self, params: &[Arc<Value>]) -> Result<Arc<dyn RTObject + Sync + Send>, StoryError> {
+    fn intersect_op(
+        &self,
+        params: &[Arc<Value>],
+    ) -> Result<Arc<dyn RTObject + Sync + Send>, StoryError> {
         match &params[0].value {
             ValueType::List(op1) => match &params[1].value {
                 ValueType::List(op2) => Ok(Arc::new(Value::new_list(op1.intersect(op2)))),
@@ -914,7 +951,10 @@ impl NativeFunctionCall {
         }
     }
 
-    fn value_of_list_op(&self, params: &[Arc<Value>]) -> Result<Arc<dyn RTObject + Sync + Send>, StoryError> {
+    fn value_of_list_op(
+        &self,
+        params: &[Arc<Value>],
+    ) -> Result<Arc<dyn RTObject + Sync + Send>, StoryError> {
         match &params[0].value {
             ValueType::List(op1) => match op1.get_max_item() {
                 Some(i) => Ok(Arc::new(Value::new_int(i.1))),
@@ -935,7 +975,10 @@ impl NativeFunctionCall {
         }
     }
 
-    fn inverse_op(&self, params: &[Arc<Value>]) -> Result<Arc<dyn RTObject + Sync + Send>, StoryError> {
+    fn inverse_op(
+        &self,
+        params: &[Arc<Value>],
+    ) -> Result<Arc<dyn RTObject + Sync + Send>, StoryError> {
         match &params[0].value {
             ValueType::List(op1) => Ok(Arc::new(Value::new_list(op1.inverse()))),
             _ => Err(StoryError::InvalidStoryState(
@@ -944,7 +987,10 @@ impl NativeFunctionCall {
         }
     }
 
-    fn count_op(&self, params: &[Arc<Value>]) -> Result<Arc<dyn RTObject + Sync + Send>, StoryError> {
+    fn count_op(
+        &self,
+        params: &[Arc<Value>],
+    ) -> Result<Arc<dyn RTObject + Sync + Send>, StoryError> {
         match &params[0].value {
             ValueType::List(op1) => Ok(Arc::new(Value::new_int(op1.items.len() as i32))),
             _ => Err(StoryError::InvalidStoryState(
@@ -953,7 +999,10 @@ impl NativeFunctionCall {
         }
     }
 
-    fn list_max_op(&self, params: &[Arc<Value>]) -> Result<Arc<dyn RTObject + Sync + Send>, StoryError> {
+    fn list_max_op(
+        &self,
+        params: &[Arc<Value>],
+    ) -> Result<Arc<dyn RTObject + Sync + Send>, StoryError> {
         match &params[0].value {
             ValueType::List(op1) => Ok(Arc::new(Value::new_list(op1.max_as_list()))),
             _ => Err(StoryError::InvalidStoryState(
@@ -962,7 +1011,10 @@ impl NativeFunctionCall {
         }
     }
 
-    fn list_min_op(&self, params: &[Arc<Value>]) -> Result<Arc<dyn RTObject + Sync + Send>, StoryError> {
+    fn list_min_op(
+        &self,
+        params: &[Arc<Value>],
+    ) -> Result<Arc<dyn RTObject + Sync + Send>, StoryError> {
         match &params[0].value {
             ValueType::List(op1) => Ok(Arc::new(Value::new_list(op1.min_as_list()))),
             _ => Err(StoryError::InvalidStoryState(
@@ -971,7 +1023,10 @@ impl NativeFunctionCall {
         }
     }
 
-    fn negate_op(&self, params: &[Arc<Value>]) -> Result<Arc<dyn RTObject + Sync + Send>, StoryError> {
+    fn negate_op(
+        &self,
+        params: &[Arc<Value>],
+    ) -> Result<Arc<dyn RTObject + Sync + Send>, StoryError> {
         match &params[0].value {
             ValueType::Int(op1) => Ok(Arc::new(Value::new_int(-op1))),
             ValueType::Float(op1) => Ok(Arc::new(Value::new_float(-op1))),
@@ -981,7 +1036,10 @@ impl NativeFunctionCall {
         }
     }
 
-    fn floor_op(&self, params: &[Arc<Value>]) -> Result<Arc<dyn RTObject + Sync + Send>, StoryError> {
+    fn floor_op(
+        &self,
+        params: &[Arc<Value>],
+    ) -> Result<Arc<dyn RTObject + Sync + Send>, StoryError> {
         match &params[0].value {
             ValueType::Int(op1) => Ok(Arc::new(Value::new_int(*op1))),
             ValueType::Float(op1) => Ok(Arc::new(Value::new_float(op1.floor()))),
@@ -991,7 +1049,10 @@ impl NativeFunctionCall {
         }
     }
 
-    fn ceiling_op(&self, params: &[Arc<Value>]) -> Result<Arc<dyn RTObject + Sync + Send>, StoryError> {
+    fn ceiling_op(
+        &self,
+        params: &[Arc<Value>],
+    ) -> Result<Arc<dyn RTObject + Sync + Send>, StoryError> {
         match &params[0].value {
             ValueType::Int(op1) => Ok(Arc::new(Value::new_int(*op1))),
             ValueType::Float(op1) => Ok(Arc::new(Value::new_float(op1.ceil()))),
@@ -1011,7 +1072,10 @@ impl NativeFunctionCall {
         }
     }
 
-    fn float_op(&self, params: &[Arc<Value>]) -> Result<Arc<dyn RTObject + Sync + Send>, StoryError> {
+    fn float_op(
+        &self,
+        params: &[Arc<Value>],
+    ) -> Result<Arc<dyn RTObject + Sync + Send>, StoryError> {
         match &params[0].value {
             ValueType::Int(op1) => Ok(Arc::new(Value::new_float(*op1 as f32))),
             ValueType::Float(op1) => Ok(Arc::new(Value::new_float(*op1))),

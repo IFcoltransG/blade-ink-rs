@@ -1,5 +1,5 @@
 use core::fmt;
-use std::{sync::Mutex, sync::Arc};
+use std::sync::{Arc, Mutex};
 
 use crate::{
     container::Container,
@@ -33,7 +33,7 @@ impl ChoicePoint {
     }
 
     pub fn get_choice_target(self: &Arc<Self>) -> Option<Arc<Container>> {
-        Object::resolve_path(self.clone(), &self.path_on_choice.borrow()).container()
+        Object::resolve_path(self.clone(), &self.path_on_choice.lock().unwrap()).container()
     }
 
     pub fn get_flags(&self) -> i32 {
@@ -78,13 +78,13 @@ impl ChoicePoint {
 
     pub fn get_path_on_choice(self: &Arc<Self>) -> Path {
         // Resolve any relative paths to global ones as we come across them
-        if self.path_on_choice.borrow().is_relative() {
+        if self.path_on_choice.lock().unwrap().is_relative() {
             if let Some(choice_target_obj) = self.get_choice_target() {
-                self.path_on_choice.replace(choice_target_obj.get_path());
+                *self.path_on_choice.lock().unwrap() = choice_target_obj.get_path();
             }
         }
 
-        self.path_on_choice.borrow().clone()
+        self.path_on_choice.lock().unwrap().clone()
     }
 
     pub fn get_path_string_on_choice(self: &Arc<Self>) -> String {
@@ -100,11 +100,12 @@ impl RTObject for ChoicePoint {
 
 impl fmt::Display for ChoicePoint {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        // let target_line_num = self.get_debug_line_number_of_path(self.get_path_on_choice()?)?;
+        // let target_line_num =
+        // self.get_debug_line_number_of_path(self.get_path_on_choice()?)?;
 
         // let mut target_string = self.get_path_on_choice()?.to_string();
 
-        let target_string = self.path_on_choice.borrow().to_string();
+        let target_string = self.path_on_choice.lock().unwrap().to_string();
 
         // if let Some(line_num) = target_line_num {
         //     target_string = format!(" line {}({})", line_num, target_string);
