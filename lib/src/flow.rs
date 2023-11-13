@@ -135,10 +135,11 @@ impl Flow {
         main_content_container: Arc<Container>,
     ) -> Result<(), StoryError> {
         for choice in self.current_choices.iter_mut() {
+            let index = *choice.original_thread_index.lock().unwrap();
             self.callstack
                 .lock()
                 .unwrap()
-                .get_thread_with_index(*choice.original_thread_index.lock().unwrap())
+                .get_thread_with_index(index)
                 .map(|o| choice.set_thread_at_generation(o.clone()))
                 .or_else(|| {
                     let j_saved_choice_thread = j_choice_threads

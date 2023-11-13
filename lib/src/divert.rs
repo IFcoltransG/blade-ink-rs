@@ -137,7 +137,7 @@ impl Divert {
                             Some(Object::get_path(target_obj.as_ref()));
                     }
                 }
-                Some(self.target_path.lock().unwrap().as_ref().unwrap().clone())
+                Some(target_path.clone())
             }
             None => None,
         }
