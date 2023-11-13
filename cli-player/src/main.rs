@@ -1,8 +1,13 @@
 //! Console player that can runs compiled `.ink.json` story files writen in the
 //! **Ink** language.
-use std::cell::RefCell;
 
-use std::{error::Error, fs, io, io::Write, path::Path, rc::Rc};
+use std::{
+    error::Error,
+    fs, io,
+    io::Write,
+    path::Path,
+    sync::{Arc, Mutex},
+};
 
 use anyhow::Context;
 use bladeink::{
@@ -38,8 +43,8 @@ struct EHandler {
 }
 
 impl EHandler {
-    pub fn new() -> Rc<RefCell<EHandler>> {
-        Rc::new(RefCell::new(EHandler {
+    pub fn new() -> Arc<Mutex<EHandler>> {
+        Arc::new(Mutex::new(EHandler {
             should_terminate: false,
         }))
     }
@@ -68,7 +73,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut end = false;
 
-    while !end && !err_handler.borrow().should_terminate {
+    while !end && !err_handler.lock().unwrap().should_terminate {
         while story.can_continue() {
             let line = story.cont()?;
 
@@ -134,13 +139,13 @@ fn process_command(command: Command, story: &mut Story) -> Result<bool, Box<dyn 
     Ok(false)
 }
 
-fn print_choices(choices: &[Rc<Choice>]) {
+fn print_choices(choices: &[Arc<Choice>]) {
     for (i, c) in choices.iter().enumerate() {
         println!("{}: {}", i + 1, c.text);
     }
 }
 
-fn read_input(choices: &Vec<Rc<Choice>>) -> Result<Command, Box<dyn Error>> {
+fn read_input(choices: &Vec<Arc<Choice>>) -> Result<Command, Box<dyn Error>> {
     let mut line = String::new();
 
     loop {
